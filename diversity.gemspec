@@ -15,7 +15,7 @@ Gem::Specification.new do |s|
   s.required_ruby_version = '>= 1.9.0'
 
   s.add_dependency('json-rpc-client')
-  s.add_dependency('json-schema')
+  s.add_dependency('json-schema', '=2.2.1')
 
   s.add_development_dependency('bacon')
   s.add_development_dependency('rake')
