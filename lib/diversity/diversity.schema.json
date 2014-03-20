@@ -1,0 +1,215 @@
+{
+  "$schema":     "http://json-schema.org/draft-04/schema#",
+  "description": "A Diversity Component specification",
+  "type":        "object",
+  "properties": {
+
+    "name": {
+      "description": "Name of component.",
+      "type":        "string",
+      "pattern":     "^[a-zA-Z0-9_-]+$"
+    },
+
+    "version": {
+      "description": "Component version, simple semver style.",
+      "$ref":        "#/definitions/semver"
+    },
+
+    "template": {
+      "description": "HTML (mustache) filename, relative base dir.  The file must exist in component directory.",
+      "anyOf": [
+        { "$ref": "#/definitions/filename" },
+        {
+          "type":   "string",
+          "format": "uri"
+        },
+        {
+          "type":   "array",
+          "items": {
+            "type": "string",
+            "anyOf": [
+              { "$ref": "#/definitions/filename" },
+              { "format": "uri"                  }
+            ]
+          }
+        }
+      ]
+    },
+
+    "style": {
+      "description": "CSS filename, relative base dir.",
+      "$ref":        "#/definitions/filename"
+    },
+
+    "script": {
+      "description": "JS filename, relative base dir.",
+      "$ref":        "#/definitions/filename"
+    },
+
+    "script": {
+      "description": "JS filename or array of filenames, relative base dir.",
+      "oneOf": [
+        { "$ref": "#/definitions/filename" },
+        { "type": "array", "items": { "$ref": "#/definitions/filename" } }
+      ]
+    },
+
+    "dependencies": {
+      "description": "Dependencies are given with component name as key, and version or URL as value.",
+      "type": "object",
+      "patternProperties": {
+        "^[a-zA-Z0-9_-]+$": {
+          "type": "string",
+          "oneOf": [
+            {
+              "description": "Version number.",
+              "$ref":        "#/definitions/semver"
+            },
+            {
+              "description": "The URL to a publically available component.",
+              "format":      "uri"
+            }
+          ]
+        }
+      }
+    },
+
+    "i18n": {
+      "description": "An object pointing to the translation potfiles for admin and frontend.",
+      "type":        "object",
+      "properties": {
+        "admin": {
+          "description": "potfile for admin strings: translatable strings in diversity.json and option schema.",
+          "$ref":        "#/definitions/filename",
+          "pattern":     "\\.pot$"
+        },
+        "frontend": {
+          "description": "potfile for frontend strings: translatable strings in the rendered component.",
+          "$ref":        "#/definitions/filename",
+          "pattern":     "\\.pot$"
+        }
+      }
+    },
+
+    "l10n": {
+      "description": "An object pointing to po-files for each language.",
+      "type":        "object",
+      "patternProperties": {
+        "^[a-z]{2}(-[A-Z]{2})?$": {
+          "type": "object",
+          "properties": {
+            "admin": {
+              "description": "po-file for admin strings.",
+              "$ref":        "#/definitions/filename",
+              "pattern":     "\\.po$"
+            },
+            "frontend": {
+              "description": "po-file for frontend strings.",
+              "$ref":        "#/definitions/filename",
+              "pattern":     "\\.po$"
+            }
+          }
+        }
+      }
+    },
+
+    "type": {
+      "description": "Component type: is this a template, page or object?",
+      "type": "string",
+      "enum": [ "template", "page", "object" ]
+    },
+
+    "pageType": {
+      "description": "Should this component only be rendered on certain types of pages?",
+      "oneOf": [
+        { "type": "string", "$ref": "#/definitions/pageType" },
+        { "type": "array", "items": { "$ref": "#/definitions/pageType" } }
+      ]
+    },
+
+    "context": {
+      "description": "API queries to feed to mustache, in JSON-RPC 2.0-format (omitting id and jsonrpc keys).",
+      "type":        "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [ "method" ],
+        "properties": {
+          "method": { "type": "string" },
+          "params": { "type": [ "array", "object" ] }
+        }
+      }
+    },
+
+    "options": {
+      "description": "Either a filename of a JSON Schema, or the JSON Schema included directly.",
+      "oneOf": [
+        { "$ref": "http://json-schema.org/draft-04/schema#" },
+        { "$ref": "#/definitions/filename" }
+      ]
+    },
+
+    "angular": {
+      "description": "If the component uses AngularJS, this must be set to true, or to a module-name that is specified in this component.",
+      "oneOf": [
+        { "type": "boolean", "enum": [true] },
+        { "type": "string" }
+      ]
+    },
+
+    "partials": {
+      "description": "An object with filenames of mustache partials.  The keyes will be fed to mustache.",
+      "type":        "object",
+      "additionalProperties": { "$ref": "#/definitions/filename" }
+    },
+
+    "themes": {
+      "description": "A list of CSS files.  Admin will chose one of them, the first being default.",
+      "type":        "array",
+      "items": { "$ref": "#/definitions/filename" }
+    },
+
+    "fields": {
+      "description": "If other objects can be inserted, this is an object with field specifications, each key will be fed to mustache with an array of rendered HTML.",
+      "type":        "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "title":       { "type": "string" },
+          "description": { "type": "string" }
+        },
+        "required": ["title"]
+      }
+    },
+
+    "title": {
+      "description": "Component title (for administration gui).",
+      "type":        "string"
+    },
+
+    "description": {
+      "description": "Component description HTML (for administration gui).",
+      "type":        "string",
+      "format":      "html"
+    },
+
+    "thumbnail": {
+      "description": "URL to thumbnail (for administration gui).",
+      "type":        "string",
+      "format":      "uri"
+    },
+
+    "assetDir": {
+      "description": "The directory holding assets that should be client-side available under assetUrl",
+      "$ref":        "#/definitions/filename"
+    }
+  },
+
+  "required":             ["name", "version"],
+  "additionalProperties": false,
+
+  "definitions": {
+    "semver":    { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "pageTypes": { "type": "string", "enum": [ "article", "articlegroup", "checkout", "basket", "custom", "start", "search" ] },
+    "filename":  { "type": "string", "pattern": "[^/?*:;{}\\\\]+$", "format": "filename" }
+  }
+}

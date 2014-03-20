@@ -1,0 +1,18 @@
+{
+  "name":      "weak-sauce",
+  "version":   "0.0.4",
+  "type":      "object",
+  "thumbnail": "weak-sauce.png",
+  "partials":  {},
+  "context": {},
+  "themes":   [],
+  "script":   ["weak_sauce.js"],
+  "i18n": {},
+  "l10n": {}, 
+  "fields":   {},
+  "options":  {},
+  "dependencies": {
+    "dummy" : ">0"
+  },
+  "assetDir":  "assets"
+}
