@@ -35,7 +35,7 @@ describe 'Component' do
     component.name.should.equal('dummy')
     component.version.to_s.should.equal('0.0.1')
     component.templates.should.equal(['dummy.html'])
-    component.style.should.equal('css/dummy.css')
+    component.styles.should.equal(['css/dummy.css'])
     component.scripts.to_a.should.equal(['js/dummy1.js', 'js/dummy2.js'])
     component.dependencies.should.equal({})
     component.type.should.equal('object')
