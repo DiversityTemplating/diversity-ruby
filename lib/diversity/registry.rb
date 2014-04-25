@@ -116,7 +116,7 @@ module Diversity
           end
           raise Diversity::Exception.new(
             "Failed to load dependency #{name} [#{req}]") unless component
-          dependencies << expand_component_list(component) unless dependencies.any? do |d|
+          dependencies.concat expand_component_list(component) unless dependencies.any? do |d|
             component.name == d.name && component.version == d.version
           end || components.any? do |c|
             component.name == c.name && component.version == c.version
@@ -153,7 +153,8 @@ module Diversity
     def copy_files(files, src_base_dir, dst_base_dir)
       files = [files] unless files.respond_to?(:each)
       files.each do |f|
-        full_src = /^(https?|ftp):\/\/.*$/ =~ f ? f : File.join(src_base_dir, f)
+        next if is_remote?(f)
+        full_src = File.join(src_base_dir, f)
         full_dst = File.join(dst_base_dir, f)
         raise Diversity::Exception.new("Failed to copy #{full_src} to #{full_dst}") unless (
           data = safe_load(full_src)
