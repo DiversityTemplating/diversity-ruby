@@ -23,8 +23,8 @@ module Diversity
     #   @return [Gem::Version] Component version
     # @!attribute [r] templates
     #   @return [Rake::FileList] Component template list
-    # @!attribute [r] style
-    #   @return [String|nil] Component main stylesheet
+    # @!attribute [r] styles
+    #   @return [Rake::FileList] Component styles list
     # @!attribute [r] scripts
     #   @return [Rake::FileList] Component script list
     # @!attribute [r] dependencies
@@ -63,7 +63,7 @@ module Diversity
     #   @return [String] Component base path
     # @!attribute [r] checksum
     #   @return [String] Component checksum (SHA1)
-    attr_reader :name, :version, :templates, :style, :scripts, :dependencies, :type, :pagetype,
+    attr_reader :name, :version, :templates, :styles, :scripts, :dependencies, :type, :pagetype,
     :context, :options, :angular, :partials, :themes, :fields, :title, :thumbnail,
     :price, :assets, :src, :i18n, :base_path, :checksum
 
@@ -198,7 +198,7 @@ module Diversity
       @name = hsh['name']
       @version = Gem::Version.new(hsh['version'])
       @templates = Rake::FileList.new(hsh.fetch('template', []))
-      @style = hsh.fetch('style', nil)
+      @styles = Rake::FileList.new(hsh.fetch('style', []))
       @scripts = Rake::FileList.new(hsh.fetch('script', []))
       @dependencies = get_dependencies(hsh.fetch('dependencies', Hash.new))
       @type = hsh.fetch('type', nil)
