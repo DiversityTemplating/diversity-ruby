@@ -25,7 +25,7 @@ module Diversity
       @@installed_components ||= Hash.new
       @base_path = File.expand_path(base_path)
       @mode = options.has_key?(:mode) ? options[:mode].to_sym : :default
-      fileutils.mkdir_p(@base_path) unless File.exists?(@base_path)
+      fileutils.mkdir_p(@base_path) unless File.exist?(@base_path)
     end
 
     # Returns a list of locally installed components
@@ -160,7 +160,7 @@ module Diversity
           data = safe_load(full_src)
           )
         dirname = File.dirname(full_dst)
-        fileutils.mkdir_p(dirname) unless File.exists?(dirname) && File.directory?(dirname)
+        fileutils.mkdir_p(dirname) unless File.exist?(dirname) && File.directory?(dirname)
         write_file(full_dst, data, full_src)
       end
     end
@@ -224,7 +224,7 @@ module Diversity
     # @param [String|nil] src
     # @return [nil]
     def write_file(dst, data, src = nil)
-      puts (src ? "cp #{src} #{dst}" : "install #{dst}") if is_verbose?
+      puts(src ? "cp #{src} #{dst}" : "install #{dst}") if is_verbose?
       File.write(dst, data) unless is_noop?
       nil
     end

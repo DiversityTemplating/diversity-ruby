@@ -183,10 +183,8 @@ module Diversity
     def parse_config(data)
       begin
         JSON.parse(data, {:symbolize_names => false})
-      rescue JSON::ParserError => err
-        raise Diversity::Exception.new(
-          "Failed to parse config file"
-          )
+      rescue JSON::ParserError
+        fail Diversity::Exception, 'Failed to parse config file'
       end
     end
 
