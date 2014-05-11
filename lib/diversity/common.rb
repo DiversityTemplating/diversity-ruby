@@ -45,9 +45,9 @@ module Diversity
       if /^\^(.*)/ =~ req
         version = Gem::Version.new($~[1])
         if version < Gem::Version.new("0.1.0")
-          req = "=#{version.to_s}"
-        else version < Gem::Version.new("1.0.0")
-          req = "~#{version.to_s}"
+          req = "=#{version}"
+        elsif version < Gem::Version.new("1.0.0")
+          req = "~#{version}"
         end
       end
 
