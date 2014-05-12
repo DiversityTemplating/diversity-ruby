@@ -5,10 +5,8 @@ require_relative 'component'
 require_relative 'exception'
 
 module Diversity
-
   # Class representing a list of locally install Component objects
   class Registry
-
     include Common
 
     # Glob representing locally installed component configurations
@@ -21,10 +19,9 @@ module Diversity
     # @param [String] base_path
     # @param [Hash] options
     # @return Diversity::Registry
-    def initialize(base_path, options = Hash.new)
-      @@installed_components ||= Hash.new
+    def initialize(base_path, options = {})
       @base_path = File.expand_path(base_path)
-      @mode = options.has_key?(:mode) ? options[:mode].to_sym : :default
+      @mode = options.key?(:mode) ? options[:mode].to_sym : :default
       fileutils.mkdir_p(@base_path) unless File.exist?(@base_path)
     end
 
@@ -32,13 +29,14 @@ module Diversity
     #
     # @return [Array] An array of Component objects
     def installed_components
-      return @@installed_components[@base_path] if @@installed_components.has_key?(@base_path)
+      return self.class.installed_components[@base_path] if
+        self.class.installed_components.key?(@base_path)
       Dir.chdir(@base_path) do
-        @@installed_components[@base_path] = Dir.glob(GLOB).inject([]) do |res, cfg|
+        self.class.installed_components[@base_path] = Dir.glob(GLOB).reduce([]) do |res, cfg|
           res << Component.new(cfg, true) # No need to validate here
         end
       end
-      @@installed_components[@base_path]
+      self.class.installed_components[@base_path]
     end
 
     # Installs a component locally. If the component is already installed, it will not be
@@ -50,9 +48,9 @@ module Diversity
     def install_component(res, force = false)
       comp = Component.new(res)
       # Never install already installed components
-      return unless force || !has_component?(comp.name, comp.version)
+      return unless force || !component_locally_installed?(comp.name, comp.version)
       # TODO: Make sure comp.name is a usable name
-      res_path = is_remote?(res) ? uri_base_path(res) : File.dirname(File.expand_path(res))
+      res_path = remote?(res) ? uri_base_path(res) : File.dirname(File.expand_path(res))
       install_path = File.join(@base_path, comp.name, comp.version.to_s)
       fileutils.mkdir_p(install_path)
       write_file(File.join(install_path, 'diversity.json'), comp.dump, comp.src)
@@ -86,7 +84,7 @@ module Diversity
     #   Gem::Version, only the exact version is set for. If set to a string or a Gem::Requirement
     #   it is possible to search for a "fuzzy" version.
     # @return [true|false]
-    def has_component?(name, version = nil)
+    def component_locally_installed?(name, version = nil)
       get_matching_components(name, version).length > 0
     end
 
@@ -112,10 +110,11 @@ module Diversity
           elsif req.is_a?(Gem::Requirement)
             component = get_component(name, req)
           else
-            raise Diversity::Exception.new("Invalid dependency #{dependency}")
+            fail Diversity::Exception, "Invalid dependency #{dependency}", caller
           end
-          raise Diversity::Exception.new(
-            "Failed to load dependency #{name} [#{req}]") unless component
+          fail Diversity::Exception,
+               "Failed to load dependency #{name} [#{req}]",
+               caller unless component
           dependencies.concat expand_component_list(component) unless dependencies.any? do |d|
             component.name == d.name && component.version == d.version
           end || components.any? do |c|
@@ -144,6 +143,10 @@ module Diversity
 
     private
 
+    def self.installed_components
+      @installed_components ||= {}
+    end
+
     # Copies a list of files
     #
     # @param [Array] files
@@ -153,12 +156,12 @@ module Diversity
     def copy_files(files, src_base_dir, dst_base_dir)
       files = [files] unless files.respond_to?(:each)
       files.each do |f|
-        next if is_remote?(f)
+        next if remote?(f)
         full_src = File.join(src_base_dir, f)
         full_dst = File.join(dst_base_dir, f)
-        raise Diversity::Exception.new("Failed to copy #{full_src} to #{full_dst}") unless (
-          data = safe_load(full_src)
-          )
+        fail Diversity::Exception,
+             "Failed to copy #{full_src} to #{full_dst}",
+             caller unless (data = safe_load(full_src))
         dirname = File.dirname(full_dst)
         fileutils.mkdir_p(dirname) unless File.exist?(dirname) && File.directory?(dirname)
         write_file(full_dst, data, full_src)
@@ -188,33 +191,33 @@ module Diversity
     # @return [Array]
     def get_matching_components(name, version = nil)
       if version.nil? # All versions
-        finder = lambda { |comp| comp.name == name }
+        finder = ->(comp) { comp.name == name }
       elsif version.is_a?(Gem::Requirement)
-        finder = lambda { |comp| comp.name == name && version.satisfied_by?(comp.version) }
+        finder = ->(comp) { comp.name == name && version.satisfied_by?(comp.version) }
       elsif version.is_a?(Gem::Version)
-        finder = lambda { |comp| comp.name == name && comp.version == version }
+        finder = ->(comp) { comp.name == name && comp.version == version }
       elsif version.is_a?(String)
         req = Gem::Requirement.new(normalize_requirement(version))
-        finder = lambda { |comp| comp.name == name && req.satisfied_by?(comp.version) }
+        finder = ->(comp) { comp.name == name && req.satisfied_by?(comp.version) }
       else
-        raise Diversity::Exception.new("Invalid version #{version}")
+        fail Diversity::Exception, "Invalid version #{version}", caller
       end
       # Find all matching components and sort them by their version (in descending order)
-      installed_components.find_all(&finder).sort { |a, b| b.version <=> a.version }
+      installed_components.select(&finder).sort { |a, b| b.version <=> a.version }
     end
 
     # Returns whether the registry actually performs file operations or just simulates them
     #
     # @return [true|false]
-    def is_noop?
-      @mode === :dryrun || @mode === :nowrite
+    def noop?
+      @mode == :dryrun || @mode == :nowrite
     end
 
     # Returns whether the registry should write file operations to the console
     #
     # @return [true|false]
-    def is_verbose?
-      @mode === :dryrun || @mode === :verbose
+    def verbose?
+      @mode == :dryrun || @mode == :verbose
     end
 
     # Maybe writes a file and maybe tells the world about it
@@ -224,11 +227,9 @@ module Diversity
     # @param [String|nil] src
     # @return [nil]
     def write_file(dst, data, src = nil)
-      puts(src ? "cp #{src} #{dst}" : "install #{dst}") if is_verbose?
-      File.write(dst, data) unless is_noop?
+      puts(src ? "cp #{src} #{dst}" : "install #{dst}") if verbose?
+      File.write(dst, data) unless noop?
       nil
     end
-
   end
-
 end

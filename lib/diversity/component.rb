@@ -74,7 +74,7 @@ module Diversity
       fail Diversity::Exception,
            'Failed to load config file',
            caller unless (data = safe_load(config))
-      if is_remote?(config)
+      if remote?(config)
         @src = Addressable::URI.parse(config).to_s
         @base_path = uri_base_path(@src)
       else
@@ -140,7 +140,7 @@ module Diversity
     def get_dependencies(hsh)
       hsh.reduce({}) do |res, e|
         # We need to handle both remote and local dependencies
-        if is_remote?(e.last.to_s) # Remote dependency
+        if remote?(e.last.to_s) # Remote dependency
           req = Addressable::URI.parse(e.last.to_s)
         else # Local dependency
           req = Gem::Requirement.new(normalize_requirement(e.last.to_s))

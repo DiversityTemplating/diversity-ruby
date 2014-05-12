@@ -16,14 +16,9 @@ SimpleCov.start do
   add_filter '/spec/'
 end
 
-
 require 'digest/sha1'
 require_relative '../lib/diversity/component.rb'
 require_relative '../lib/diversity/registry.rb'
-
-class ComponentHelper
-
-end
 
 describe 'Component' do
   should 'be able to load a local component by using file path' do
@@ -62,19 +57,19 @@ describe 'Component' do
     )
     registry = Diversity::Registry.new(registry_path)
     it '...by Rubygems version' do
-      registry.has_component?('dummy', Gem::Version.new('0.0.1')).should.equal(true)
+      registry.component_locally_installed?('dummy', Gem::Version.new('0.0.1')).should.equal(true)
       comp = registry.get_component('dummy', Gem::Version.new('0.0.1'))
       comp.name.should.equal('dummy')
       comp.version.to_s.should.equal('0.0.1')
     end
     it '...by exact version string' do
-      registry.has_component?('dummy', '0.0.1').should.equal(true)
+      registry.component_locally_installed?('dummy', '0.0.1').should.equal(true)
       comp = registry.get_component('dummy', '0.0.1')
       comp.name.should.equal('dummy')
       comp.version.to_s.should.equal('0.0.1')
     end
     it '...by fuzzy version string' do
-      registry.has_component?('dummy', '>0').should.equal(true)
+      registry.component_locally_installed?('dummy', '>0').should.equal(true)
       comp = registry.get_component('dummy', '>0')
       comp.name.should.equal('dummy')
       comp.version.to_s.should.equal('0.0.1')
