@@ -94,4 +94,41 @@ describe 'Component' do
     all_comps.last.version.to_s.should.equal('0.0.4')
   end
 
+  should 'be able to install/uninstall a component' do
+    registry_path = File.expand_path(Dir.mktmpdir())
+    begin
+      registry = Diversity::Registry.new(registry_path)
+      registry.install_component(
+        File.expand_path(
+          File.join(
+            File.dirname(__FILE__), 'components',
+            'dummy', '0.0.1', 'diversity.json'
+          )
+        )
+      )
+      registry.component_locally_installed?('dummy', Gem::Version.new('0.0.1')).should.equal(true)
+      comp = registry.get_component('dummy', Gem::Version.new('0.0.1'))
+      comp.name.should.equal('dummy')
+      comp.version.to_s.should.equal('0.0.1')
+      registry.uninstall_component('dummy', '0.0.1')
+      registry.component_locally_installed?('dummy', Gem::Version.new('0.0.1')).should.equal(false)
+      comp = registry.get_component('dummy', Gem::Version.new('0.0.1'))
+      comp.should.equal(nil)
+    ensure
+      FileUtils.remove_entry_secure registry_path
+    end
+  end
+
+  should 'fail when config file cannot be loaded' do
+    ->() { Diversity::Component.new('nonexisting.json') }.
+      should.raise(Diversity::Exception).message.
+      should.match(/Failed to load config file/)
+  end
+
+  should 'fail when config file cannot be parsed as valid JSON' do
+    ->() { Diversity::Component.new('http://www.textalk.se/') }.
+      should.raise(Diversity::Exception).message.
+      should.match(/Failed to parse config file/)
+  end
+
 end

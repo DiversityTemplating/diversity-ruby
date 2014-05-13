@@ -55,14 +55,14 @@ module Diversity
       fileutils.mkdir_p(install_path)
       write_file(File.join(install_path, 'diversity.json'), comp.dump, comp.src)
       copy_files(comp.templates, res_path, install_path)
-      copy_files(comp.style, res_path, install_path) if comp.style
+      copy_files(comp.styles, res_path, install_path) if comp.styles
       copy_files(comp.scripts, res_path, install_path)
       # TODO: partials?
       copy_files(comp.themes, res_path, install_path)
       copy_files(comp.thumbnail, res_path, install_path) if comp.thumbnail
       # TODO: assets?
       # Invalidate cache
-      @@installed_components.delete(@base_path)
+      self.class.installed_components.delete(@base_path)
       load_component(File.join(install_path, 'diversity.json'))
     end
 
@@ -137,7 +137,7 @@ module Diversity
         fileutils.rm_rf(comp.base_path)
       end
       # Invalidate cache
-      @@installed_components.delete(@base_path)
+      self.class.installed_components.delete(@base_path)
       uninstalled_versions
     end
 
