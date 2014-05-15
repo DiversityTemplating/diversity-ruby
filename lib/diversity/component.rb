@@ -11,10 +11,8 @@ require_relative 'common'
 require_relative 'exception'
 
 module Diversity
-
   # Class representing an external component
   class Component
-
     include Common
 
     # @!attribute [r] name
@@ -64,8 +62,8 @@ module Diversity
     # @!attribute [r] checksum
     #   @return [String] Component checksum (SHA1)
     attr_reader :name, :version, :templates, :styles, :scripts, :dependencies, :type, :pagetype,
-    :context, :options, :angular, :partials, :themes, :fields, :title, :thumbnail,
-    :price, :assets, :src, :i18n, :base_path, :checksum
+                :context, :options, :angular, :partials, :themes, :fields, :title, :thumbnail,
+                :price, :assets, :src, :i18n, :base_path, :checksum
 
     # Creates a new component from a configuration resource (file or URL)
     #
@@ -73,25 +71,21 @@ module Diversity
     # @raise [Diversity::Exception] if the resource cannot be loaded
     # @return [BS::Component::Component]
     def initialize(config, skip_validation = false)
-      begin
-        raise Diversity::Exception.new(
-          "Failed to load config file"
-          ) unless (data = safe_load(config))
-        if is_remote?(config)
-          @src = Addressable::URI.parse(config).to_s
-          @base_path = uri_base_path(@src)
-        else
-          @src = File.expand_path(config)
-          @base_path = File.dirname(@src)
-        end
-        validate_config(data) unless skip_validation
-        hsh = parse_config(data)
-        @raw = hsh
-        @checksum = Digest::SHA1.hexdigest(dump)
-        populate(hsh)
-      rescue Diversity::Exception => err
-        raise err
+      fail Diversity::Exception,
+           'Failed to load config file',
+           caller unless (data = safe_load(config))
+      if remote?(config)
+        @src = Addressable::URI.parse(config).to_s
+        @base_path = uri_base_path(@src)
+      else
+        @src = File.expand_path(config)
+        @base_path = File.dirname(@src)
       end
+      validate_config(data) unless skip_validation
+      hsh = parse_config(data)
+      @raw = hsh
+      @checksum = Digest::SHA1.hexdigest(dump)
+      populate(hsh)
     end
 
     # Returns a JSON dump of the component configuration
@@ -106,9 +100,9 @@ module Diversity
     # @param [URI|String] backend_url (including any query parameters representing context)
     # @param [Hash] inputs Inputs from controller
     # @return [Hash]
-    def resolve_context(backend_url, controller_context = Hash.new)
-      client = JsonRpcClient.new(backend_url.to_s, {asynchronous_calls: false})
-      resolved_context = Hash.new
+    def resolve_context(backend_url, controller_context = {})
+      client = JsonRpcClient.new(backend_url.to_s, asynchronous_calls: false)
+      resolved_context = {}
       @context.each_pair do |key, settings|
         # Round 1 - Resolve controller_context
         new_settings = settings.dup
@@ -116,8 +110,9 @@ module Diversity
           if param.is_a?(String) && (matches = /(\{\{(.+)\}\})/.match(param))
             # Param contains a Mustache template, try to find the value in the controller_context
             normalized = matches[2].strip.to_sym
-            raise Diversity::Exception.new(
-              "No such variable #{normalized}") unless controller_context.has_key?(normalized)
+            fail Diversity::Exception,
+                 "No such variable #{normalized}",
+                 caller unless controller_context.key?(normalized)
             param.gsub!(matches[0], controller_context[normalized.to_sym].to_s)
           end
           param
@@ -143,9 +138,9 @@ module Diversity
     # @param [Hash] hsh
     # @return [Array]
     def get_dependencies(hsh)
-      hsh.inject(Hash.new) do |res, e|
+      hsh.reduce({}) do |res, e|
         # We need to handle both remote and local dependencies
-        if is_remote?(e.last.to_s) # Remote dependency
+        if remote?(e.last.to_s) # Remote dependency
           req = Addressable::URI.parse(e.last.to_s)
         else # Local dependency
           req = Gem::Requirement.new(normalize_requirement(e.last.to_s))
@@ -163,15 +158,13 @@ module Diversity
     def get_options(options)
       return options if options.is_a?(Hash)
       options = options.to_str # Force to string
-      raise Diversity::Exception.new(
-        "Failed to load options schema"
-        ) unless (data = safe_load(options))
+      fail Diversity::Exception,
+           'Failed to load options schema',
+           caller unless (data = safe_load(options))
       begin
         JSON.parse(data)
       rescue JSON::ParserError
-        raise Diversity::Exception.new(
-          "Failed to parse options schema"
-          )
+        raise Diversity::Exception, 'Failed to parse options schema', caller
       end
     end
 
@@ -182,9 +175,9 @@ module Diversity
     # @return [nil]
     def parse_config(data)
       begin
-        JSON.parse(data, {:symbolize_names => false})
+        JSON.parse(data, symbolize_names: false)
       rescue JSON::ParserError
-        fail Diversity::Exception, 'Failed to parse config file'
+        raise Diversity::Exception, 'Failed to parse config file', caller
       end
     end
 
@@ -198,22 +191,22 @@ module Diversity
       @templates = Rake::FileList.new(hsh.fetch('template', []))
       @styles = Rake::FileList.new(hsh.fetch('style', []))
       @scripts = Rake::FileList.new(hsh.fetch('script', []))
-      @dependencies = get_dependencies(hsh.fetch('dependencies', Hash.new))
+      @dependencies = get_dependencies(hsh.fetch('dependencies', {}))
       @type = hsh.fetch('type', nil)
       @pagetype = hsh.fetch('pagetype', nil)
-      @context = hsh.fetch('context', Hash.new)
-      @options = get_options(hsh.fetch('options', Hash.new))
+      @context = hsh.fetch('context', {})
+      @options = get_options(hsh.fetch('options', {}))
       @angular = hsh.fetch('angular', nil)
-      @angular = @name if @angular === true # If set to true, use component name
-      @partials = hsh.fetch('partials', Hash.new)
+      @angular = @name if @angular == true # If set to true, use component name
+      @partials = hsh.fetch('partials', {})
       @themes = Rake::FileList.new(hsh.fetch('themes', []))
-      @fields = hsh.fetch('fields', Hash.new)
+      @fields = hsh.fetch('fields', {})
       @title = hsh.fetch('title', nil)
       @description = hsh.fetch('description', nil)
       @thumbnail = hsh.fetch('thumbnail', nil)
       @price = hsh.fetch('price', nil)
       @assets = Rake::FileList.new(hsh.fetch('assets', []))
-      @i18n = hsh.fetch('i18n', Hash.new)
+      @i18n = hsh.fetch('i18n', {})
     end
 
     # Validates configuration and throws an exception if something invalid is discovered
@@ -223,12 +216,9 @@ module Diversity
     def validate_config(data)
       schema = File.join(File.dirname(__FILE__), 'diversity.schema.json')
       errors = JSON::Validator.fully_validate(schema, data)
-      #raise Diversity::Exception.new(
-      #  "Configuration does not match schema. Errors:\n#{errors.join("\n")}"
-      #) unless errors.empty?
+      # fail Diversity::Exception,
+      #      "Configuration does not match schema. Errors:\n#{errors.join("\n")}",
+      #      caller unless errors.empty?
     end
-
   end
-
 end
-

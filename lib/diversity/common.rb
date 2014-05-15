@@ -1,10 +1,9 @@
+require 'English'
 require 'open-uri'
 
 module Diversity
-
   # Namespace for shared methods in the Component namespace
   module Common
-
     # Expands a single path or a list of patch to form an absolute URL or an absoluet file path
     #
     # @param [String] base_path
@@ -13,14 +12,14 @@ module Diversity
     def expand_paths(base_path, file_list)
       return nil if file_list.nil?
       if file_list.respond_to?(:each)
-        file_list.collect do |file|
+        file_list.map do |file|
           f = file.to_s
-          is_remote?(f) ? f : File.join(base_path, f)
+          remote?(f) ? f : File.join(base_path, f)
         end
       else
         f = file_list.to_s
         return file_list if f.empty?
-        is_remote?(f) ? f : File.join(base_path, f)
+        remote?(f) ? f : File.join(base_path, f)
       end
     end
 
@@ -28,10 +27,9 @@ module Diversity
     #
     # @param [String] res
     # @return [true|false]
-    def is_remote?(res)
-      /^(https?|ftp):\/\/.*$/ =~ res.to_s
+    def remote?(res)
+      %r{^(https?|ftp)://.*$} =~ res.to_s
     end
-
 
     # Normalizes a requirement string so that it can be parsed by Gem::Requirement
     #
@@ -43,10 +41,10 @@ module Diversity
       req = requirement_string.to_s
       # Watch out for those crazy hats!
       if /^\^(.*)/ =~ req
-        version = Gem::Version.new($~[1])
-        if version < Gem::Version.new("0.1.0")
+        version = Gem::Version.new($LAST_MATCH_INFO[1])
+        if version < Gem::Version.new('0.1.0')
           req = "=#{version}"
-        elsif version < Gem::Version.new("1.0.0")
+        elsif version < Gem::Version.new('1.0.0')
           req = "~#{version}"
         end
       end
@@ -83,8 +81,5 @@ module Diversity
       u.path = File.dirname(u.path)
       u.to_s
     end
-
   end
-
 end
-
