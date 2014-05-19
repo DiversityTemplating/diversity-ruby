@@ -74,6 +74,19 @@ describe 'Component' do
       comp.name.should.equal('dummy')
       comp.version.to_s.should.equal('0.0.1')
     end
+    it '...by fuzzy version string (take 2)' do
+      registry.component_locally_installed?('dummy', '^0.0.1').should.equal(true)
+      comp = registry.get_component('dummy', '^0.0.1')
+      comp.name.should.equal('dummy')
+      comp.version.to_s.should.equal('0.0.1')
+    end
+    it '...by fuzzy version string (take 3)' do
+      registry.component_locally_installed?('something-special', '^0.5.0').should.equal(true)
+      comp = registry.get_component('something-special', '^0.5.0')
+      comp.name.should.equal('something-special')
+      comp.version.to_s.should.equal('0.5.5')
+    end
+
   end
 
   should 'be able to resolve local dependencies' do
@@ -95,7 +108,7 @@ describe 'Component' do
   end
 
   should 'be able to install/uninstall a component' do
-    registry_path = File.expand_path(Dir.mktmpdir())
+    registry_path = File.expand_path(Dir.mktmpdir)
     begin
       registry = Diversity::Registry.new(registry_path)
       registry.install_component(
@@ -119,16 +132,36 @@ describe 'Component' do
     end
   end
 
+  should 'be able to install/uninstall a component from the web' do
+    registry_path = File.expand_path(Dir.mktmpdir)
+    begin
+      registry = Diversity::Registry.new(registry_path)
+      registry.install_component(
+        'http://diversity.io/textalk-webshop-native-components/' \
+        'tws-bootstrap/raw/master/diversity.json'
+      )
+      registry.component_locally_installed?('tws-bootstrap', '>0').should.equal(true)
+      comp = registry.get_component('tws-bootstrap', '>0')
+      comp.name.should.equal('tws-bootstrap')
+      registry.uninstall_component('tws-bootstrap', '0.0.1')
+      registry.component_locally_installed?('tws-bootstrap', '>0').should.equal(false)
+      comp = registry.get_component('tws-bootstrap', '>0')
+      comp.should.equal(nil)
+    ensure
+      FileUtils.remove_entry_secure registry_path
+    end
+  end
+
   should 'fail when config file cannot be loaded' do
-    ->() { Diversity::Component.new('nonexisting.json') }.
-      should.raise(Diversity::Exception).message.
-      should.match(/Failed to load config file/)
+    ->() { Diversity::Component.new('nonexisting.json') }
+      .should.raise(Diversity::Exception).message
+      .should.match(/Failed to load config file/)
   end
 
   should 'fail when config file cannot be parsed as valid JSON' do
-    ->() { Diversity::Component.new('http://www.textalk.se/') }.
-      should.raise(Diversity::Exception).message.
-      should.match(/Failed to parse config file/)
+    ->() { Diversity::Component.new('http://www.textalk.se/') }
+      .should.raise(Diversity::Exception).message
+      .should.match(/Failed to parse config file/)
   end
 
 end

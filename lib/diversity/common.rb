@@ -4,25 +4,6 @@ require 'open-uri'
 module Diversity
   # Namespace for shared methods in the Component namespace
   module Common
-    # Expands a single path or a list of patch to form an absolute URL or an absoluet file path
-    #
-    # @param [String] base_path
-    # @param [Enumerable|String|nil] file_list
-    # @return [Enumerable|String|nil]
-    def expand_paths(base_path, file_list)
-      return nil if file_list.nil?
-      if file_list.respond_to?(:each)
-        file_list.map do |file|
-          f = file.to_s
-          remote?(f) ? f : File.join(base_path, f)
-        end
-      else
-        f = file_list.to_s
-        return file_list if f.empty?
-        remote?(f) ? f : File.join(base_path, f)
-      end
-    end
-
     # Returns true if a string matches a remote protocol
     #
     # @param [String] res
