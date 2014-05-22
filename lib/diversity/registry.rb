@@ -47,8 +47,10 @@ module Diversity
     # @return [Diversity::Component]
     def install_component(res, force = false)
       comp = Component.new(res)
-      # Never install already installed components
-      return unless force || !component_locally_installed?(comp.name, comp.version)
+      # If component is already installed, return locally
+      # installed component instead (unless forced)
+      return get_component(comp.name, comp.version) unless
+        force || !component_locally_installed?(comp.name, comp.version)
       # TODO: Make sure comp.name is a usable name
       res_path = remote?(res) ? uri_base_path(res) : File.dirname(File.expand_path(res))
       install_path = File.join(@base_path, comp.name, comp.version.to_s)

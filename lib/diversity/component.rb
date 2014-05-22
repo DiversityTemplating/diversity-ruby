@@ -138,7 +138,7 @@ module Diversity
     # @param [Hash] hsh
     # @return [Array]
     def get_dependencies(hsh)
-      hsh.reduce({}) do |res, e|
+      hsh.each_with_object({}) do |e, res|
         # We need to handle both remote and local dependencies
         if remote?(e.last.to_s) # Remote dependency
           req = Addressable::URI.parse(e.last.to_s)
@@ -146,7 +146,6 @@ module Diversity
           req = Gem::Requirement.new(normalize_requirement(e.last.to_s))
         end
         res[e.first.to_s] = req
-        res
       end
     end
 
