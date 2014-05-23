@@ -32,11 +32,12 @@ describe 'Component' do
     component.templates.should.equal(['dummy.html'])
     component.styles.should.equal(['css/dummy.css'])
     component.scripts.to_a.should.equal(['js/dummy1.js', 'js/dummy2.js'])
-    component.dependencies.should.equal({})
+    component.dependencies.should.equal('something-special' => Gem::Requirement.new('>0.0.1'))
     component.type.should.equal('object')
     component.pagetype.should.equal(nil)
     component.context.should.equal({})
     component.options.should.equal({})
+    component.options_src.should.equal(nil)
     component.angular.should.equal('dummy')
     component.partials.should.equal({})
     component.themes.should.equal([])
@@ -99,10 +100,11 @@ describe 'Component' do
     comp.name.should.equal('weak-sauce')
     comp.version.to_s.should.equal('0.0.4')
     all_comps = registry.expand_component_list(comp)
-    all_comps.length.should.equal(2)
+    all_comps.length.should.equal(3)
     all_comps.each { |e| e.class.should.equal(Diversity::Component) }
-    all_comps.first.name.should.equal('dummy')
-    all_comps.first.version.to_s.should.equal('0.0.1')
+    all_comps.first.name.should.equal('something-special')
+    all_comps.first.version.to_s.should.equal('0.5.5')
+    all_comps.first.options_src.should.equal('schema.json')
     all_comps.last.name.should.equal('weak-sauce')
     all_comps.last.version.to_s.should.equal('0.0.4')
   end
@@ -162,6 +164,33 @@ describe 'Component' do
     ->() { Diversity::Component.new('http://www.textalk.se/') }
       .should.raise(Diversity::Exception).message
       .should.match(/Failed to parse config file/)
+  end
+
+  should 'fail when options file cannot be parsed as valid JSON' do
+    lambda do
+      Diversity::Component.new(
+        File.join(
+          File.dirname(__FILE__), 'invalid_components', 'something-awful', '1.8.8', 'diversity.json'
+        )
+      )
+    end
+    .should.raise(Diversity::Exception).message
+    .should.match(/Failed to parse options schema/)
+  end
+
+  should 'allow registry to work in different modes' do
+    [:dryrun, :nowrite, :verbose].each do |mode|
+      registry_path = File.expand_path(Dir.mktmpdir)
+      registry = Diversity::Registry.new(registry_path, mode: mode)
+      registry.install_component(
+        File.join(
+          File.dirname(__FILE__), 'components', 'something-special', '0.5.5', 'diversity.json'
+        )
+      )
+      registry.uninstall_component('something-special')
+      registry.mode.should.equal(mode)
+      FileUtils.remove_entry_secure registry_path
+    end
   end
 
 end

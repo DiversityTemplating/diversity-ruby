@@ -56,16 +56,10 @@ module Diversity
       install_path = File.join(@base_path, comp.name, comp.version.to_s)
       fileutils.mkdir_p(install_path)
       write_file(File.join(install_path, 'diversity.json'), comp.dump, comp.src)
-      copy_files(comp.templates, res_path, install_path)
-      copy_files(comp.styles, res_path, install_path) if comp.styles
-      copy_files(comp.scripts, res_path, install_path)
-      # TODO: partials?
-      copy_files(comp.themes, res_path, install_path)
-      copy_files(comp.thumbnail, res_path, install_path) if comp.thumbnail
-      # TODO: assets?
-      # Invalidate cache
-      self.class.installed_components.delete(@base_path)
-      load_component(File.join(install_path, 'diversity.json'))
+      copy_component_files(comp, res_path, install_path)
+      # Invalidate cache (unless we are faking the installation)
+      self.class.installed_components.delete(@base_path) unless noop?
+      noop? ? comp : load_component(File.join(install_path, 'diversity.json'))
     end
 
     # Returns a locally installed version (or nil if the component does not exist).
@@ -138,8 +132,8 @@ module Diversity
         uninstalled_versions << comp.version
         fileutils.rm_rf(comp.base_path)
       end
-      # Invalidate cache
-      self.class.installed_components.delete(@base_path)
+      # Invalidate cache (unless we are faking the uninstallation)
+      self.class.installed_components.delete(@base_path) unless noop?
       uninstalled_versions
     end
 
@@ -147,6 +141,19 @@ module Diversity
 
     def self.installed_components
       @installed_components ||= {}
+    end
+
+    def copy_component_files(component, src, dst)
+      copy_files(component.templates, src, dst)
+      copy_files(component.styles, src, dst) if component.styles
+      copy_files(component.scripts, src, dst)
+      # TODO: partials?
+      copy_files(component.themes, src, dst)
+      copy_files(component.thumbnail, src, dst) if component.thumbnail
+      copy_files(
+        component.options_src, src, dst
+      ) if component.options_src && !remote?(component.options_src)
+      # TODO: assets?
     end
 
     # Copies a list of files
