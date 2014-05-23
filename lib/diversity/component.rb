@@ -35,6 +35,8 @@ module Diversity
     #   @return [Hash] Component context
     # @!attribute [r] options
     #   @return [Hash] Component options
+    # @!attribute [r] options_src
+    #   @return [String|nil] Component options source
     # @!attribute [r] angular
     #   @return [String|nil] Angular module name
     # @!attribute [r] partials
@@ -62,8 +64,8 @@ module Diversity
     # @!attribute [r] checksum
     #   @return [String] Component checksum (SHA1)
     attr_reader :name, :version, :templates, :styles, :scripts, :dependencies, :type, :pagetype,
-                :context, :options, :angular, :partials, :themes, :fields, :title, :thumbnail,
-                :price, :assets, :src, :i18n, :base_path, :checksum
+                :context, :options, :options_src, :angular, :partials, :themes, :fields, :title,
+                :thumbnail, :price, :assets, :src, :i18n, :base_path, :checksum
 
     # Creates a new component from a configuration resource (file or URL)
     #
@@ -155,13 +157,14 @@ module Diversity
     # @param [Hash|String] options
     # @return [Hash]
     def get_options(options)
-      return options if options.is_a?(Hash)
-      options = options.to_str # Force to string
+      return options, nil if options.is_a?(Hash)
+      options_str = options.to_str # Force to string
+      options_url = remote?(options_str) ? options_str : File.join(base_path, options_str)
       fail Diversity::Exception,
            'Failed to load options schema',
-           caller unless (data = safe_load(options))
+           caller unless (data = safe_load(options_url))
       begin
-        JSON.parse(data)
+        return JSON.parse(data), options_str
       rescue JSON::ParserError
         raise Diversity::Exception, 'Failed to parse options schema', caller
       end
@@ -194,7 +197,7 @@ module Diversity
       @type = hsh.fetch('type', nil)
       @pagetype = hsh.fetch('pagetype', nil)
       @context = hsh.fetch('context', {})
-      @options = get_options(hsh.fetch('options', {}))
+      @options, @options_src = get_options(hsh.fetch('options', {}))
       @angular = hsh.fetch('angular', nil)
       @angular = @name if @angular == true # If set to true, use component name
       @partials = hsh.fetch('partials', {})
