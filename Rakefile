@@ -19,3 +19,5 @@ end
 
 desc 'Runs the test suite'
 task test: :spec
+
+task default: :spec
