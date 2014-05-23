@@ -1,6 +1,7 @@
 require 'English'
 require 'open-uri'
 
+# Main namespace for diversity
 module Diversity
   # Namespace for shared methods in the Component namespace
   module Common

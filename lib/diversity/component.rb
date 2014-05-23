@@ -100,22 +100,22 @@ module Diversity
     # Resolves context in component by asking the API
     #
     # @param [URI|String] backend_url (including any query parameters representing context)
-    # @param [Hash] inputs Inputs from controller
+    # @param [Hash] context Context variables
     # @return [Hash]
-    def resolve_context(backend_url, controller_context = {})
+    def resolve_context(backend_url, context = {})
       client = JsonRpcClient.new(backend_url.to_s, asynchronous_calls: false)
       resolved_context = {}
       @context.each_pair do |key, settings|
-        # Round 1 - Resolve controller_context
+        # Round 1 - Resolve context
         new_settings = settings.dup
         new_settings['params'].map! do |param|
           if param.is_a?(String) && (matches = /(\{\{(.+)\}\})/.match(param))
-            # Param contains a Mustache template, try to find the value in the controller_context
+            # Param contains a Mustache template, try to find the value in the context
             normalized = matches[2].strip.to_sym
             fail Diversity::Exception,
                  "No such variable #{normalized}",
-                 caller unless controller_context.key?(normalized)
-            param.gsub!(matches[0], controller_context[normalized.to_sym].to_s)
+                 caller unless context.key?(normalized)
+            param.gsub!(matches[0], context[normalized.to_sym].to_s)
           end
           param
         end
