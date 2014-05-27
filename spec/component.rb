@@ -193,4 +193,40 @@ describe 'Component' do
     end
   end
 
+  should 'be able to handle complex dependencies' do
+    registry_path = File.expand_path(Dir.mktmpdir)
+    begin
+      registry = Diversity::Registry.new(registry_path)
+      registry.install_component(
+        'http://diversity.io/textalk-webshop-native-components/' \
+        'tws-checkout/raw/master/diversity.json'
+      )
+      registry.install_component(
+        'http://diversity.io/textalk-webshop-native-components/' \
+        'tws-bootstrap/raw/master/diversity.json'
+      )
+      registry.install_component(
+        'http://diversity.io/textalk-webshop-native-components/' \
+        'tws-api/raw/master/diversity.json'
+      )
+      registry.install_component(
+        'http://diversity.io/textalk-webshop-native-components/' \
+        'tws-schema-form/raw/master/diversity.json'
+      )
+      comp = registry.get_component('tws-checkout')
+      comp_api = registry.get_component('tws-api')
+      comp_bootstrap = registry.get_component('tws-bootstrap')
+      comp_schema_form = registry.get_component('tws-schema-form')
+      comp_list = registry.expand_component_list(comp)
+      comp_list.length.should.equal(4)
+      comp_list.all? { |c| c.is_a? Diversity::Component }.should.equal(true)
+      comp_list[0].should.equal(comp_bootstrap)
+      comp_list[1].should.equal(comp_api)
+      comp_list[2].should.equal(comp_schema_form)
+      comp_list[3].should.equal(comp)
+    ensure
+      FileUtils.remove_entry_secure registry_path
+    end
+  end
+
 end
