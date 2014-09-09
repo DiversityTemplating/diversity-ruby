@@ -10,7 +10,7 @@
   "i18n": {},
   "l10n": {}, 
   "fields":   {},
-  "options":  {},
+  "settings":  {},
   "dependencies": {
     "dummy" : ">0"
   },

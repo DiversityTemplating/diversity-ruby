@@ -36,8 +36,8 @@ describe 'Component' do
     component.type.should.equal('object')
     component.pagetype.should.equal(nil)
     component.context.should.equal({})
-    component.options.should.equal({})
-    component.options_src.should.equal(nil)
+    component.settings.should.equal({})
+    component.settings_src.should.equal(nil)
     component.angular.should.equal('dummy')
     component.partials.should.equal({})
     component.themes.should.equal([])
@@ -104,7 +104,7 @@ describe 'Component' do
     all_comps.each { |e| e.class.should.equal(Diversity::Component) }
     all_comps.first.name.should.equal('something-special')
     all_comps.first.version.to_s.should.equal('0.5.5')
-    all_comps.first.options_src.should.equal('schema.json')
+    all_comps.first.settings_src.should.equal('schema.json')
     all_comps.last.name.should.equal('weak-sauce')
     all_comps.last.version.to_s.should.equal('0.0.4')
   end
@@ -166,7 +166,7 @@ describe 'Component' do
       .should.match(/Failed to parse config file/)
   end
 
-  should 'fail when options file cannot be parsed as valid JSON' do
+  should 'fail when settings file cannot be parsed as valid JSON' do
     lambda do
       Diversity::Component.new(
         File.join(
@@ -175,7 +175,7 @@ describe 'Component' do
       )
     end
     .should.raise(Diversity::Exception).message
-    .should.match(/Failed to parse options schema/)
+    .should.match(/Failed to parse settings schema/)
   end
 
   should 'allow registry to work in different modes' do

@@ -33,10 +33,10 @@ module Diversity
     #   @return [String|nil] Component page type
     # @!attribute [r] context
     #   @return [Hash] Component context
-    # @!attribute [r] options
-    #   @return [Hash] Component options
-    # @!attribute [r] options_src
-    #   @return [String|nil] Component options source
+    # @!attribute [r] settings
+    #   @return [Hash] Component settings
+    # @!attribute [r] settings_src
+    #   @return [String|nil] Component settings source
     # @!attribute [r] angular
     #   @return [String|nil] Angular module name
     # @!attribute [r] partials
@@ -64,7 +64,7 @@ module Diversity
     # @!attribute [r] checksum
     #   @return [String] Component checksum (SHA1)
     attr_reader :name, :version, :templates, :styles, :scripts, :dependencies, :type, :pagetype,
-                :context, :options, :options_src, :angular, :partials, :themes, :fields, :title,
+                :context, :settings, :settings_src, :angular, :partials, :themes, :fields, :title,
                 :thumbnail, :price, :assets, :src, :i18n, :base_path, :checksum
 
     # Creates a new component from a configuration resource (file or URL)
@@ -83,7 +83,7 @@ module Diversity
         @src = File.expand_path(config)
         @base_path = File.dirname(@src)
       end
-      validate_config(data) unless skip_validation
+      self.class.validate_config(data) unless skip_validation
       hsh = parse_config(data)
       @raw = hsh
       @checksum = Digest::SHA1.hexdigest(dump)
@@ -141,32 +141,33 @@ module Diversity
     # @return [Array]
     def get_dependencies(hsh)
       hsh.each_with_object({}) do |e, res|
+        req_string = e.last.to_s
         # We need to handle both remote and local dependencies
-        if remote?(e.last.to_s) # Remote dependency
-          req = Addressable::URI.parse(e.last.to_s)
+        if remote?(req_string) # Remote dependency
+          req = Addressable::URI.parse(req_string)
         else # Local dependency
-          req = Gem::Requirement.new(normalize_requirement(e.last.to_s))
+          req = Gem::Requirement.new(normalize_requirement(req_string))
         end
         res[e.first.to_s] = req
       end
     end
 
-    # Returns options associated with the component, either directly from the config file
+    # Returns settings associated with the component, either directly from the config file
     # or by downloading a schema from the specified URL
     #
-    # @param [Hash|String] options
+    # @param [Hash|String] settings
     # @return [Hash]
-    def get_options(options)
-      return options, nil if options.is_a?(Hash)
-      options_str = options.to_str # Force to string
-      options_url = remote?(options_str) ? options_str : File.join(base_path, options_str)
+    def get_settings(settings)
+      return settings, nil if settings.is_a?(Hash)
+      settings_str = settings.to_str # Force to string
+      settings_url = remote?(settings_str) ? settings_str : File.join(base_path, settings_str)
       fail Diversity::Exception,
-           'Failed to load options schema',
-           caller unless (data = safe_load(options_url))
+           'Failed to load settings schema',
+           caller unless (data = safe_load(settings_url))
       begin
-        return JSON.parse(data), options_str
+        return JSON.parse(data), settings_str
       rescue JSON::ParserError
-        raise Diversity::Exception, 'Failed to parse options schema', caller
+        raise Diversity::Exception, 'Failed to parse settings schema', caller
       end
     end
 
@@ -197,7 +198,7 @@ module Diversity
       @type = hsh.fetch('type', nil)
       @pagetype = hsh.fetch('pagetype', nil)
       @context = hsh.fetch('context', {})
-      @options, @options_src = get_options(hsh.fetch('options', {}))
+      @settings, @settings_src = get_settings(hsh.fetch('settings', {}))
       @angular = hsh.fetch('angular', nil)
       @angular = @name if @angular == true # If set to true, use component name
       @partials = hsh.fetch('partials', {})
@@ -215,7 +216,7 @@ module Diversity
     # @param [String] data
     # @raise [Diversity::Exception] if the configuration contains invalid data
     # @return [nil]
-    def validate_config(data)
+    def self.validate_config(data)
       schema = File.join(File.dirname(__FILE__), 'diversity.schema.json')
       errors = JSON::Validator.fully_validate(schema, data)
       # fail Diversity::Exception,

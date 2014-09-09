@@ -37,13 +37,12 @@
     },
 
     "style": {
-      "description": "CSS filename, relative base dir.",
-      "$ref":        "#/definitions/filename"
-    },
-
-    "script": {
-      "description": "JS filename, relative base dir.",
-      "$ref":        "#/definitions/filename"
+      "title":       "CSS",
+      "description": "CSS filename or array of filenames, relative base dir.",
+      "oneOf": [
+        { "$ref": "#/definitions/filename" },
+        { "type": "array", "items": { "$ref": "#/definitions/filename" } }
+      ]
     },
 
     "script": {
@@ -143,7 +142,7 @@
     "options": {
       "description": "Either a filename of a JSON Schema, or the JSON Schema included directly.",
       "oneOf": [
-        { "type": "object" },
+        { "$ref": "http://json-schema.org/draft-04/schema#" },
         { "$ref": "#/definitions/filename" }
       ]
     },
