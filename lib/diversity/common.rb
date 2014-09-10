@@ -21,8 +21,10 @@ module Diversity
     # http://www.devalot.com/articles/2012/04/gem-versions.html
     def normalize_requirement(requirement_string)
       req = requirement_string.to_s
-      # Watch out for those crazy hats!
-      if /^\^(.*)/ =~ req
+      if req == '*'
+        req = '>0'
+      elsif /^\^(.*)/ =~ req
+        # Watch out for those crazy hats!
         version = Gem::Version.new($LAST_MATCH_INFO[1])
         if version < Gem::Version.new('0.1.0')
           req = "=#{version}"
@@ -51,6 +53,15 @@ module Diversity
       ensure
         # If we got any data, make sure it is a string. Otherwise just return nil.
         data ? data.to_str : data
+      end
+    end
+
+    def load_json(res, klass = JsonObject)
+      fail "Failed to load JSON from #{res}" unless data = safe_load(res)
+      begin
+        JsonObject[JSON.parse(data, symbolize_names: false), res, klass]
+      rescue JSON::ParserError
+        raise Diversity::Exception, "Failed to parse schema from #{res}", caller
       end
     end
 

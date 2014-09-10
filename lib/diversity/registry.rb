@@ -47,19 +47,22 @@ module Diversity
     # @return [Diversity::Component]
     def install_component(res, force = false)
       comp = Component.new(res)
+      name = comp.name
+      version = comp.version
       # If component is already installed, return locally
       # installed component instead (unless forced)
-      return get_component(comp.name, comp.version) unless
-        force || !component_locally_installed?(comp.name, comp.version)
+      return get_component(name, version) unless
+        force || !component_locally_installed?(name, version)
       # TODO: Make sure comp.name is a usable name
       res_path = remote?(res) ? uri_base_path(res) : File.dirname(File.expand_path(res))
-      install_path = File.join(@base_path, comp.name, comp.version.to_s)
+      install_path = File.join(@base_path, name, version.to_s)
       fileutils.mkdir_p(install_path)
-      write_file(File.join(install_path, 'diversity.json'), comp.dump, comp.src)
+      config_path = File.join(install_path, 'diversity.json')
+      write_file(config_path, comp.dump, comp.src)
       copy_component_files(comp, res_path, install_path)
       # Invalidate cache (unless we are faking the installation)
       self.class.installed_components.delete(@base_path) unless noop?
-      noop? ? comp : load_component(File.join(install_path, 'diversity.json'))
+      noop? ? comp : load_component(config_path)
     end
 
     # Returns a locally installed version (or nil if the component does not exist).
@@ -111,10 +114,10 @@ module Diversity
           fail Diversity::Exception,
                "Failed to load dependency #{name} [#{req}]",
                caller unless component
-          dependencies.concat expand_component_list(component) unless dependencies.any? do |d|
-            component.name == d.name && component.version == d.version
-          end || components.any? do |c|
-            component.name == c.name && component.version == c.version
+          dependencies.concat expand_component_list(component) unless dependencies.any? do |dep|
+            component.name == dep.name && component.version == dep.version
+          end || components.any? do |comp|
+            component.name == comp.name && component.version == comp.version
           end
         end
       end
@@ -212,7 +215,7 @@ module Diversity
         fail Diversity::Exception, "Invalid version #{version}", caller
       end
       # Find all matching components and sort them by their version (in descending order)
-      installed_components.select(&finder).sort { |a, b| b.version <=> a.version }
+      installed_components.select(&finder).sort { |first, second| first.version <=> second.version }
     end
 
     # Returns whether the registry actually performs file operations or just simulates them
