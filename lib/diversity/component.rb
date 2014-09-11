@@ -33,7 +33,7 @@ module Diversity
     #
     # @param [String] resource configuration resource
     # @raise [Diversity::Exception] if the resource cannot be loaded
-    # @return [BS::Component::Component]
+    # @return [Diversity::Component]
     def initialize(resource, skip_validation = false)
       fail Diversity::Exception,
            'Failed to load config file',
@@ -47,7 +47,6 @@ module Diversity
         @configuration.base_path = File.dirname(@configuration.src)
       end
       schema = JsonSchemaCache[File.join(File.dirname(__FILE__), 'diversity.schema.json')]
-      p schema
       schema.validate(data) unless skip_validation
       @raw = parse_config(data)
       @checksum = Digest::SHA1.hexdigest(dump)

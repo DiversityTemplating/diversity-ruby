@@ -1,5 +1,6 @@
 require_relative 'diversity/common.rb'
 require_relative 'diversity/component.rb'
+require_relative 'diversity/engine.rb'
 require_relative 'diversity/exception.rb'
 require_relative 'diversity/registry.rb'
 require_relative 'diversity/json_object.rb'
