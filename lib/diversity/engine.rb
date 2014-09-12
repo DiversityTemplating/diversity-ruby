@@ -16,19 +16,19 @@ module Diversity
     # @param [Diversity::Component] A diversity component
     # @param [Diversity::JsonObject] A JsonObject representing the settings to apply
     def render(component, settings)
+      p component.name
+      p component.version
       # 1. Check that the settings are applicable for the component
       validate_settings(component.settings, settings)
       # 2. Extract the components needed by the main components (dependencies)
       components = @registry.expand_component_list(component)
       # 3. Extract subcomponents from the settings
       subcomponents = get_subcomponents(component, settings)
-      subcomponents.each do |sub|
-        p sub.first.name + "(#{sub.first.version})"
-        p sub.last
-      end
+      subcomponents.each { |sub| render(subcomponents) }
       # 4. Make sure that all components are available
       # 5. Iterate through the list of components (from the "innermost") and render them
       # 6. Attach the rendered component to its parent (as a special key) until we reach the "topmost" component
+      nil
     end
 
     private
