@@ -154,8 +154,8 @@ module Diversity
       copy_files(component.themes, src, dst)
       copy_files(component.thumbnail, src, dst) if component.thumbnail
       copy_files(
-        component.settings_src, src, dst
-      ) if component.settings_src && !remote?(component.settings_src)
+        component.settings.source, src, dst
+      ) if component.settings.source && !remote?(component.settings.source)
       # TODO: assets?
     end
 
