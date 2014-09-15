@@ -20,10 +20,10 @@ module Diversity
     # Renders a component
     # @param [Diversity::Component] A diversity component
     # @param [Diversity::JsonObject] A JsonObject representing the settings to apply
-    def render(component, settings)
+    def render(component, settings, key = [])
+      puts "Rendering #{key.inspect} (#{component.name} (#{component.version})"
       fail "First argument must be a Diversity::Component, but you sent a #{component.class}" unless component.is_a?(Component)
       fail "Second argument must be a Diversity::JsonObject, but you sent a #{settings.class}" unless settings.is_a?(JsonObject)
-      puts "Rendering #{component.name} (#{component.version})"
       # 1. Check that the settings are applicable for the component
       validate_settings(component.settings, settings)
       # 2. Extract the components needed by the main components (dependencies)
@@ -31,17 +31,26 @@ module Diversity
       # 3. Extract subcomponents from the settings
       # 4. Make sure that all components are available
       # 5. Iterate through the list of components (from the "innermost") and render them
+      
+      templatedata = {}
       subcomponents = get_subcomponents(component, settings)
-      subcomponents.each { |sub| render(sub.first, sub.last) }
+      subcomponents.each do |sub|
+        templatedata[sub[2]] ||= []
+        templatedata[sub[2]] << render(sub[0], sub[1], sub[2])[sub[2]]
+      end
 
       templates = component.templates.map { |t| expand_component_paths(component.base_path, t) }
 
+      # TODO! Merge templatedata from subcomponents into the context of the current template
+
       templates.each do |template|
-        render_template(component, template, settings)
+        templatedata[key] = render_template(component, template, settings)
       end
+
+      p templatedata.keys
       
       # 6. Attach the rendered component to its parent (as a special key) until we reach the "topmost" component
-      nil
+      templatedata
     end
 
     private
@@ -61,9 +70,14 @@ module Diversity
       component_keys = component.settings.select do |node|
         node.last['type'] == 'object' && node.last['format'] == 'diversity'
       end.map { |node| node.first }
+      return [] if component_keys.empty?
       new_keys = []
       component_keys.each do |key|
         new_keys << key.reject { |e| e == 'properties' || e == 'items' }
+      end
+      # Sort by key length first and then by each key
+      new_keys = new_keys.sort do |one_obj, another_obj|
+        sort_by_key(one_obj, another_obj)
       end
       new_keys.each do |key|
         components = extract_setting(key, settings)
@@ -71,7 +85,7 @@ module Diversity
           components.each do |c|
             comp = @registry.get_component(c['component'])
             fail "Cannot load component #{c['component']}" if comp.nil?
-            subcomponents << [comp, JsonObject[c['settings']]]
+            subcomponents << [comp, JsonObject[c['settings']], key]
           end
         end
       end
@@ -111,20 +125,29 @@ module Diversity
       return nil if template_data.nil? # No need to render empty templates
       # Add data from API
       context = component.resolve_context(@options[:backend_url], component.context)
-      # Add data from settings (only "TOP LEVEL"
+      # Add data from settings (only "TOP LEVEL)"
       applicable = settings.select do |node|
         node.first.length < 2
       end.map { |e| e.last }.first
-      new_a = {}
+      settings = Hash.new
+      settings[:settings] = Hash.new
       applicable.each_pair do |k, v|
-        new_a[k.to_sym] = v
-      end 
-      new_a.merge!(context)
-      puts "CONTEXT:" + new_a.inspect
+        settings[:settings][k.to_sym] = v
+      end
+      settings = settings.merge(context)
       # Return rendered data
-      rendered = { content: Mustache.render(template_data, new_a) }
-      p rendered
-      rendered
+      Mustache.render(template_data, settings)
+    end
+
+    # Sort by longest key length first and then by each key
+    def sort_by_key(one_obj, another_obj)
+      len_cmp = another_obj.length  <=> one_obj.length
+      return len_cmp if len_cmp.nonzero?
+      one_obj.each_with_index do |key, index|
+        key_cmp = another_obj[index] <=> key 
+        return key_cmp if key_cmp.nonzero?
+      end
+      0
     end
 
   end

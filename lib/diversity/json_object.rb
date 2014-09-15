@@ -3,16 +3,6 @@ module Diversity
   # and glorified Hash, but has some nice methods for traversing all
   # nodes in the object.
   class JsonObject
-    # Sort by key length first and then by each key
-    SORT_BY_KEY = lambda do |one_obj, another_obj|
-      len_cmp = one_obj.first.length <=> another_obj.first.length
-      return len_cmp if len_cmp.nonzero?
-      one_obj.first.each_with_index do |key, index|
-        key_cmp = key <=> another_obj.first[index]
-        return key_cmp if key_cmp.nonzero?
-      end
-      0
-    end
 
     include Enumerable
 
