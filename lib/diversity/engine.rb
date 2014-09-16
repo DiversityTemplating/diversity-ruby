@@ -21,7 +21,6 @@ module Diversity
     # @param [Diversity::Component] A diversity component
     # @param [Diversity::JsonObject] A JsonObject representing the settings to apply
     def render(component, settings, key = [])
-      puts "Rendering #{key.inspect} (#{component.name} (#{component.version})"
       fail "First argument must be a Diversity::Component, but you sent a #{component.class}" unless component.is_a?(Component)
       fail "Second argument must be a Diversity::JsonObject, but you sent a #{settings.class}" unless settings.is_a?(JsonObject)
       # 1. Check that the settings are applicable for the component
@@ -31,26 +30,44 @@ module Diversity
       # 3. Extract subcomponents from the settings
       # 4. Make sure that all components are available
       # 5. Iterate through the list of components (from the "innermost") and render them
-      
-      templatedata = {}
+
+      # all_templatedata represents *all* templatedata gathered so far
+      # After the following loop it will contain the template data of
+      # all *subcomponents* of the current components
+      all_templatedata = {}
       subcomponents = get_subcomponents(component, settings)
       subcomponents.each do |sub|
-        templatedata[sub[2]] ||= []
-        templatedata[sub[2]] << render(sub[0], sub[1], sub[2])[sub[2]]
+        all_templatedata[sub[2]] ||= []
+        all_templatedata[sub[2]] << render(sub[0], sub[1], sub[2])[sub[2]]
       end
+
+      # Components might contain more than one subcomponent. In that case,
+      # make sure that we merge all rendered HTML into a single element
+      all_templatedata = all_templatedata.each_with_object({}) { |(k, v), h| h[k] = v.join('') }
+
+      # current_templatedata represents the templatedata for the *current*
+      # component. Since the rendering of the current component is esentially
+      # wrapping up the HTML of all subcomponents we build this structure
+      # from all the previously rendered components.
+      current_templatedata = Hash.new
+      all_templatedata.each_pair do |key, value|
+        new_key = (key.dup) << 'componentHTML'
+        node = [new_key, value]
+        current_templatedata = current_templatedata.keep_merge(node_to_hash(node))
+      end
+
+      # Merge current_templatedata with the current settings
+      settings_hash = Hash.new
+      settings_hash[:settings] = settings.data.keep_merge(current_templatedata)
 
       templates = component.templates.map { |t| expand_component_paths(component.base_path, t) }
 
-      # TODO! Merge templatedata from subcomponents into the context of the current template
-
       templates.each do |template|
-        templatedata[key] = render_template(component, template, settings)
+        all_templatedata[key] = render_template(component, template, settings_hash)
       end
 
-      p templatedata.keys
-      
       # 6. Attach the rendered component to its parent (as a special key) until we reach the "topmost" component
-      templatedata
+      all_templatedata
     end
 
     private
@@ -125,16 +142,7 @@ module Diversity
       return nil if template_data.nil? # No need to render empty templates
       # Add data from API
       context = component.resolve_context(@options[:backend_url], component.context)
-      # Add data from settings (only "TOP LEVEL)"
-      applicable = settings.select do |node|
-        node.first.length < 2
-      end.map { |e| e.last }.first
-      settings = Hash.new
-      settings[:settings] = Hash.new
-      applicable.each_pair do |k, v|
-        settings[:settings][k.to_sym] = v
-      end
-      settings = settings.merge(context)
+      settings = settings.keep_merge(context)
       # Return rendered data
       Mustache.render(template_data, settings)
     end
@@ -144,10 +152,27 @@ module Diversity
       len_cmp = another_obj.length  <=> one_obj.length
       return len_cmp if len_cmp.nonzero?
       one_obj.each_with_index do |key, index|
-        key_cmp = another_obj[index] <=> key 
+        key_cmp = another_obj[index] <=> key
         return key_cmp if key_cmp.nonzero?
       end
       0
+    end
+
+    def node_to_hash(arr)
+      key = arr.first
+      val = arr.last
+      fail 'Empty key not allowed' if key.empty?
+      c = Hash.new
+      outermost = c
+      key.each_with_index do |e, idx|
+        if idx < key.length - 1
+          c[e] = Hash.new
+          c = c[e]
+        else
+          c[e] = val
+        end
+      end
+      outermost
     end
 
   end
