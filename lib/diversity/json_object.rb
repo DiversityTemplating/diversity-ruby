@@ -14,25 +14,38 @@ module Diversity
       @source = source
     end
 
+    # Returns the current object as a JSON string
+    #
+    # @return [String]
     def dump
       JSON.generate(@data)
     end
 
+    # Returns the current object as a prettified JSON string
+    #
+    # @return [String]
     def dump_pretty
       JSON.pretty_generate(@data)
     end
 
+    # Iterates over all nodes in the current object
+    #
+    # @return [nil|Enumerator]
     def each(&block)
       if block_given?
         # Some trickery to allow us to call a private class
         # method in Diversity::JsonObject from any subclass
         data = @data
         self.class.class_eval { traverse(data, [], &block) }
+        nil
       else
         to_enum(:each)
       end
     end
 
+    # Iterates over all keys in the current object
+    #
+    # @return [nil|Enumerator]
     def each_key(&block)
       if block_given?
         each { |node| block.call(node.first) }
@@ -41,6 +54,9 @@ module Diversity
       end
     end
 
+    # Iterates over all nodes in the current object
+    #
+    # @return [nil|Enumerator]
     def each_pair(&block)
       if block_given?
         each { |node| block.call(node.first, node.last) }
@@ -49,6 +65,9 @@ module Diversity
       end
     end
 
+    # Iterates over all values in the current object
+    #
+    # @return [nil|Enumerator]
     def each_value(&block)
       if block_given?
         each { |node| block.call(node.last) }
@@ -57,30 +76,48 @@ module Diversity
       end
     end
 
+    # Returns a node by key
+    #
+    # @param [Object] args
+    # @return [Array|nil]
     def [](*args)
       args.flatten!
       node = find { |node| node.first == args }
       node ? node.last : nil
     end
 
+    # Returns an array of keys in the object
+    #
+    # @return [Array]
     def keys
       keys = []
       each_key { |key| keys << key }
       keys
     end
 
+    # Returns an array of nodes in the object
+    #
+    # @return [Array]
     def nodes
       nodes = []
       each { |node| nodes << node }
       nodes
     end
 
+    # Returns an array of values in the object
+    #
+    # @return [Array]
     def values
       values = []
       each_value { |value| values << value }
       values
     end
 
+    # Returns an instance of JsonObject (or a subclass thereof)
+    #
+    # @param [Hash] data
+    # @param [String] source
+    # @param [Class] klass
     def self.[](data, source = nil, klass = JsonObject)
       fail 'Must be a subclass of Diversity::JsonObject' unless klass <= JsonObject
       klass.new(data, source)

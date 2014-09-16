@@ -17,6 +17,7 @@ module Diversity
   class Component
     include Common
 
+    # Cmponent configuration
     Configuration =
       Struct.new(
         :name, :version, :templates, :styles, :scripts, :dependencies,

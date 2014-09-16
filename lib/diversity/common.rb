@@ -41,13 +41,13 @@ module Diversity
     # Safely loads a resource without raising any exceptions. If the resource cannot
     # be fetched, nil is returned.
     #
-    # @param [String] res A resource, either a file or an URL
+    # @param [String] resource A resource, either a file or an URL
     # @return [String|nil]
-    def safe_load(res)
+    def safe_load(resource)
       data = nil
       begin
-        Kernel.open(res) do |r|
-          data = r.read
+        Kernel.open(resource) do |res|
+          data = res.read
         end
       rescue StandardError
       ensure
@@ -56,23 +56,27 @@ module Diversity
       end
     end
 
-    def load_json(res, klass = JsonObject)
-      fail "Failed to load JSON from #{res}" unless data = safe_load(res)
+    # Loads a JSON resource, parses it and returns a Diversity::JsonObject
+    #
+    # @param[String] resource
+    # @param[Class] klass
+    def load_json(resource, klass = JsonObject)
+      fail "Failed to load JSON from #{resource}" unless data = safe_load(resource)
       begin
-        JsonObject[JSON.parse(data, symbolize_names: false), res, klass]
+        JsonObject[JSON.parse(data, symbolize_names: false), resource, klass]
       rescue JSON::ParserError
-        raise Diversity::Exception, "Failed to parse schema from #{res}", caller
+        raise Diversity::Exception, "Failed to parse schema from #{resource}", caller
       end
     end
 
     # Gets the "parent" of an URL
     #
-    # @param [String] s
+    # @param [String] url_string
     # @return [String]
-    def uri_base_path(s)
-      u = Addressable::URI.parse(s)
-      u.path = File.dirname(u.path)
-      u.to_s
+    def uri_base_path(url_string)
+      url = Addressable::URI.parse(url_string)
+      url.path = File.dirname(url.path)
+      url.to_s
     end
   end
 end
