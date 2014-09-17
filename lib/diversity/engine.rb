@@ -83,6 +83,9 @@ module Diversity
       # Merge current_templatedata with the current settings
       settings_hash = {}
       settings_hash[:settings] = settings.data.keep_merge(current_templatedata)
+      # According to David we need the settings as JSON as well
+      settings_hash[:settingsJSON] =
+        settings_hash[:settings].to_json.gsub(/<\/script>/i,'<\\/script>')
       if key.empty? # TOP LEVEL, we need to render scripts and styles
         settings_hash['scripts'] = context_scripts
         settings_hash['styles'] = context_styles
