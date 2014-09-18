@@ -3,7 +3,6 @@ module Diversity
   # and glorified Hash, but has some nice methods for traversing all
   # nodes in the object.
   class JsonObject
-
     include Enumerable
 
     attr_reader :data, :source
@@ -82,8 +81,8 @@ module Diversity
     # @return [Array|nil]
     def [](*args)
       args.flatten!
-      node = find { |node| node.first == args }
-      node ? node.last : nil
+      found_node = find { |node| node.first == args }
+      found_node ? found_node.last : nil
     end
 
     # Returns an array of keys in the object
@@ -131,6 +130,5 @@ module Diversity
     end
 
     private_class_method :traverse
-
   end
 end

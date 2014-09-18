@@ -61,7 +61,7 @@ module Diversity
     # @param[String] resource
     # @param[Class] klass
     def load_json(resource, klass = JsonObject)
-      fail "Failed to load JSON from #{resource}" unless data = safe_load(resource)
+      fail "Failed to load JSON from #{resource}" unless (data = safe_load(resource))
       begin
         JsonObject[JSON.parse(data, symbolize_names: false), resource, klass]
       rescue JSON::ParserError

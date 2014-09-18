@@ -1,4 +1,5 @@
 require 'mustache'
+require 'set'
 
 module Diversity
   # Class for rendering Diversity components
@@ -9,15 +10,17 @@ module Diversity
 
     # Default options for engine
     DEFAULT_OPTIONS = {
-      backend_url: 'https://www.textalk.se/backend/jsonrpc',
+      backend_url: nil,
       minify_js: false,
       public_path: nil,
-      registry_path: '/home/lasso/components'
+      public_path_proc: nil,
+      registry: nil
     }
 
     def initialize(options = {})
       @options = DEFAULT_OPTIONS.merge(options)
-      @registry = Registry.new(@options[:registry_path])
+      # Ensure that we have a valid registry to work against
+      fail 'Cannot run engine without a valid registry!' unless @options[:registry].is_a?(Registry::Base)
     end
 
     # Renders a component
@@ -35,21 +38,8 @@ module Diversity
       validate_settings(component.settings, settings)
 
       # Step 1 - Load components that we depend on
-      context = get_context
-      context_scripts = context[:scripts]
-      context_styles = context[:styles]
-      components = @registry.expand_component_list(component)
-      components.each do |c|
-        component_path = public_path(c)
-        scripts = expand_component_paths(component_path, c.scripts)
-        scripts.each do |script|
-          context_scripts << script unless context_scripts.include?(script)
-        end
-        styles = expand_component_paths(component_path, c.styles)
-        styles.each do |style|
-          context_styles << style unless context_styles.include?(style)
-        end
-      end
+      components = @options[:registry].expand_component_list(component)
+      update_context(components)
 
       # 3. Extract subcomponents from the settings
       # 4. Make sure that all components are available
@@ -85,10 +75,10 @@ module Diversity
       settings_hash[:settings] = settings.data.keep_merge(current_templatedata)
       # According to David we need the settings as JSON as well
       settings_hash[:settingsJSON] =
-        settings_hash[:settings].to_json.gsub(/<\/script>/i,'<\\/script>')
+        settings_hash[:settings].to_json.gsub(/<\/script>/i, '<\\/script>')
       if key.empty? # TOP LEVEL, we need to render scripts and styles
-        settings_hash['scripts'] = context_scripts
-        settings_hash['styles'] = context_styles
+        settings_hash['scripts'] = context[:scripts].to_a
+        settings_hash['styles'] = context[:styles].to_a
       end
 
       templates = component.templates.map do |template|
@@ -111,17 +101,57 @@ module Diversity
 
     private
 
+    # Returns the default rendering context for the current engine
+    #
+    # @return [Hash]
+    def context
+      self.class.rendering_context[self] ||= { scripts: Set.new, styles: Set.new }
+    end
+
+    # Deletes the rendering context for the current engine
     def delete_context
       self.class.rendering_context.delete(self)
     end
 
     def public_path(component)
-      return component.base_path unless @options[:public_path]
-      File.join(@options[:public_path], component.name, component.version.to_s)
+      # If the user has provided a Proc for the public path, call it
+      proc = @options[:public_path_proc]
+      return proc.call(self, component) if proc
+      # If the user has provided a String for the public path, use that
+      path = @options[:public_path]
+      return path if path
+      # Use the component's base path by default
+      File.join(component.base_path, component.name, component.version.to_s)
     end
 
-    def get_context
-      self.class.rendering_context[self] ||= { scripts: [], styles: [] }
+    # Update the rendering context with data from the currently
+    # rendering component.
+    #
+    # @param [Array] An array of Diversity::Component objects
+    # @return [nil]
+    def update_context(components)
+      components.each do |component|
+        component_path = public_path(component)
+        add_to_context_set(
+          :scripts,
+          expand_component_paths(component_path, component.scripts)
+        )
+        add_to_context_set(
+          :styles,
+          expand_component_paths(component_path, component.styles)
+        )
+      end
+      nil
+    end
+
+    # Adds a value to a specific context unless the value is already
+    # present in the key.
+    #
+    # @param [Symbol] key
+    # @param [Array] values
+    def add_to_context_set(key, values)
+      values.each { |value| context[key].add(value) }
+      nil
     end
 
     class << self
@@ -156,23 +186,25 @@ module Diversity
     def get_subcomponents(component, settings)
       subcomponents = []
       component_keys = component.settings.select do |node|
-        node.last['type'] == 'object' && node.last['format'] == 'diversity'
+        last = node.last
+        last['type'] == 'object' && last['format'] == 'diversity'
       end
       return [] if component_keys.empty?
       component_keys.map!(&:first)
       new_keys = []
       component_keys.each do |key|
-        new_keys << key.reject { |e| e == 'properties' || e == 'items' }
+        new_keys << key.reject { |elem| elem == 'properties' || elem == 'items' }
       end
       # Sort by key length first and then by each key
+      klass = self.class
       new_keys = new_keys.sort do |one_obj, another_obj|
-        self.class.sort_by_key(one_obj, another_obj)
+        klass.sort_by_key(one_obj, another_obj)
       end
       new_keys.each do |key|
-        components = self.class.extract_setting(key, settings)
+        components = klass.extract_setting(key, settings)
         next if components.nil?
         components.each do |c|
-          comp = @registry.get_component(c['component'])
+          comp = @options[:registry].get_component(c['component'])
           fail "Cannot load component #{c['component']}" if comp.nil?
           subcomponents << [comp, JsonObject[c['settings']], key]
         end
@@ -188,10 +220,10 @@ module Diversity
       new_key = key.dup
       last = new_key.pop
       data = settings[new_key]
-      return nil if data.nil? || data.empty?
-      data = data[last]
-      return nil if data.nil? || data.empty?
-      data
+      return nil unless data && !data.empty?
+      setting = data[last]
+      return nil unless setting && !setting.empty?
+      setting
     end
 
     # Create a list of absolute paths from a base path and a list of
@@ -204,8 +236,8 @@ module Diversity
       return nil if file_list.nil?
       if file_list.respond_to?(:each)
         file_list.map do |file|
-          f = file.to_s
-          remote?(f) ? f : File.join(base_path, f)
+          res = file.to_s
+          remote?(res) ? res : File.join(base_path, res)
         end
       else
         f = file_list.to_s
@@ -223,7 +255,7 @@ module Diversity
     # @return [String]
     def render_template(component, template, settings)
       template_data = safe_load(template)
-      return nil if template_data.nil? # No need to render empty templates
+      return nil unless template_data # No need to render empty templates
       # Add data from API
       context = component.resolve_context(@options[:backend_url], component.context)
       settings = settings.keep_merge(context)
@@ -251,8 +283,7 @@ module Diversity
     # @param [Array] node
     # @return [Hash]
     def node_to_hash(node)
-      key = node.first
-      value = node.last
+      key, value = node
       fail 'Empty key not allowed' if key.empty?
       current_hash = {}
       outermost_hash = current_hash
