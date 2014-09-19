@@ -1,12 +1,34 @@
 require 'mustache'
-require 'set'
 
 module Diversity
   # Class for rendering Diversity components
   class Engine
     include Common
 
-    @rendering_context = {}
+    # A simple wrapper for the context used when rendering
+    class RenderingContext
+      ivars = [:angular, :scripts, :styles]
+      define_method :initialize do
+        ivars.each do |ivar|
+          instance_variable_set "@#{ivar}".to_sym, []
+        end
+      end
+      ivars.each do |ivar|
+        ivar_ref = "@#{ivar}".to_sym
+        define_method "add_#{ivar}".to_sym do |values|
+          values.each do |value|
+            next unless value # No nils or falsies allowed!
+            ivar_obj = instance_variable_get(ivar_ref)
+            ivar_obj << value unless ivar_obj.include?(value)
+          end
+        end
+        define_method ivar do
+          instance_variable_get(ivar_ref)
+        end
+      end
+    end
+
+    @rendering_contexts = {}
 
     # Default options for engine
     DEFAULT_OPTIONS = {
@@ -77,8 +99,10 @@ module Diversity
       settings_hash[:settingsJSON] =
         settings_hash[:settings].to_json.gsub(/<\/script>/i, '<\\/script>')
       if key.empty? # TOP LEVEL, we need to render scripts and styles
-        settings_hash['scripts'] = context[:scripts].to_a
-        settings_hash['styles'] = context[:styles].to_a
+        settings_hash['angularBootstrap'] =
+          "angular.bootstrap(document,#{context.angular.to_json});"
+        settings_hash['scripts'] = context.scripts
+        settings_hash['styles'] = context.styles
       end
 
       templates = component.templates.map do |template|
@@ -105,12 +129,12 @@ module Diversity
     #
     # @return [Hash]
     def context
-      self.class.rendering_context[self] ||= { scripts: Set.new, styles: Set.new }
+      self.class.rendering_contexts[self] ||= RenderingContext.new
     end
 
     # Deletes the rendering context for the current engine
     def delete_context
-      self.class.rendering_context.delete(self)
+      self.class.rendering_contexts.delete(self)
     end
 
     def public_path(component)
@@ -119,7 +143,7 @@ module Diversity
       return proc.call(self, component) if proc
       # If the user has provided a String for the public path, use that
       path = @options[:public_path]
-      return path if path
+      return File.join(path, component.name, component.version.to_s) if path
       # Use the component's base path by default
       File.join(component.base_path, component.name, component.version.to_s)
     end
@@ -132,30 +156,19 @@ module Diversity
     def update_context(components)
       components.each do |component|
         component_path = public_path(component)
-        add_to_context_set(
-          :scripts,
+        context.add_angular([component.angular].flatten)
+        context.add_scripts(
           expand_component_paths(component_path, component.scripts)
         )
-        add_to_context_set(
-          :styles,
+        context.add_styles(
           expand_component_paths(component_path, component.styles)
         )
       end
       nil
     end
 
-    # Adds a value to a specific context unless the value is already
-    # present in the key.
-    #
-    # @param [Symbol] key
-    # @param [Array] values
-    def add_to_context_set(key, values)
-      values.each { |value| context[key].add(value) }
-      nil
-    end
-
     class << self
-      attr_reader :rendering_context
+      attr_reader :rendering_contexts
     end
 
     # Merges all content in a single key to a single string.
