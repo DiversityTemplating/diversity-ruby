@@ -6,7 +6,7 @@ module Diversity
     include Common
 
     # A simple wrapper for the context used when rendering
-    class RenderingContext
+    class Settings
       ivars = [:angular, :scripts, :styles]
       define_method :initialize do
         ivars.each do |ivar|
@@ -47,17 +47,17 @@ module Diversity
 
     # Renders a component
     # @param [Diversity::Component] component
-    # @param [Diversity::JsonObject] settings
+    # @param [Diversity::JsonObject] json_settings
     # @param [Array] key
     # @return [Hash|String]
-    def render(component, settings, key = [])
+    def render(component, json_settings, key = [])
       # Some basic validation that protects us from rendering stuff we
       # cannot handle
       fail 'First argument must be a Diversity::Component, but you sent ' \
            " a #{component.class}" unless component.is_a?(Component)
       fail 'Second argument must be a Diversity::JsonObject, but you sent ' \
-           "a #{settings.class}" unless settings.is_a?(JsonObject)
-      validate_settings(component.settings, settings)
+           "a #{json_settings.class}" unless json_settings.is_a?(JsonObject)
+      validate_settings(component.settings, json_settings)
 
       # Step 1 - Load components that we depend on
       components = @options[:registry].expand_component_list(component)
@@ -71,7 +71,7 @@ module Diversity
       # After the following loop it will contain the template data of
       # all *subcomponents* of the current components
       all_templatedata = {}
-      get_subcomponents(component, settings).each do |sub|
+      get_subcomponents(component, json_settings).each do |sub|
         sub_key = sub[2]
         all_templatedata[sub_key] ||= []
         all_templatedata[sub_key] << render(sub[0], sub[1], sub_key)[sub_key]
@@ -94,15 +94,15 @@ module Diversity
 
       # Merge current_templatedata with the current settings
       settings_hash = {}
-      settings_hash[:settings] = settings.data.keep_merge(current_templatedata)
+      settings_hash[:settings] = json_settings.data.keep_merge(current_templatedata)
       # According to David we need the settings as JSON as well
       settings_hash[:settingsJSON] =
         settings_hash[:settings].to_json.gsub(/<\/script>/i, '<\\/script>')
       if key.empty? # TOP LEVEL, we need to render scripts and styles
         settings_hash['angularBootstrap'] =
-          "angular.bootstrap(document,#{context.angular.to_json});"
-        settings_hash['scripts'] = context.scripts
-        settings_hash['styles'] = context.styles
+          "angular.bootstrap(document,#{settings.angular.to_json});"
+        settings_hash['scripts'] = settings.scripts
+        settings_hash['styles'] = settings.styles
       end
 
       templates = component.templates.map do |template|
@@ -128,8 +128,8 @@ module Diversity
     # Returns the default rendering context for the current engine
     #
     # @return [Hash]
-    def context
-      self.class.rendering_contexts[self] ||= RenderingContext.new
+    def settings
+      self.class.rendering_contexts[self] ||= Settings.new
     end
 
     # Deletes the rendering context for the current engine
@@ -156,11 +156,11 @@ module Diversity
     def update_context(components)
       components.each do |component|
         component_path = public_path(component)
-        context.add_angular([component.angular].flatten)
-        context.add_scripts(
+        settings.add_angular([component.angular].flatten)
+        settings.add_scripts(
           expand_component_paths(component_path, component.scripts)
         )
-        context.add_styles(
+        settings.add_styles(
           expand_component_paths(component_path, component.styles)
         )
       end
