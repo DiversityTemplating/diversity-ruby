@@ -28,11 +28,11 @@ module Diversity
       end
     end
 
-    @rendering_contexts = {}
+    @settings = {}
 
     # Default options for engine
     DEFAULT_OPTIONS = {
-      backend_url: nil,
+      backend_url: nil, # Optional, might be overridden in render
       minify_js: false,
       public_path: nil,
       public_path_proc: nil,
@@ -50,7 +50,7 @@ module Diversity
     # @param [Diversity::JsonObject] json_settings
     # @param [Array] key
     # @return [Hash|String]
-    def render(component, json_settings, key = [])
+    def render(component, context = {}, json_settings = JsonObject.new({}), key = [])
       # Some basic validation that protects us from rendering stuff we
       # cannot handle
       fail 'First argument must be a Diversity::Component, but you sent ' \
@@ -61,7 +61,7 @@ module Diversity
 
       # Step 1 - Load components that we depend on
       components = @options[:registry].expand_component_list(component)
-      update_context(components)
+      update_settings(components)
 
       # 3. Extract subcomponents from the settings
       # 4. Make sure that all components are available
@@ -74,7 +74,7 @@ module Diversity
       get_subcomponents(component, json_settings).each do |sub|
         sub_key = sub[2]
         all_templatedata[sub_key] ||= []
-        all_templatedata[sub_key] << render(sub[0], sub[1], sub_key)[sub_key]
+        all_templatedata[sub_key] << render(sub[0], context, sub[1], sub_key)[sub_key]
       end
 
       # Components might contain more than one subcomponent. In that case,
@@ -111,12 +111,12 @@ module Diversity
 
       all_templates = []
       templates.each do |template|
-        all_templates << render_template(component, template, settings_hash)
+        all_templates << render_template(component, template, context, settings_hash)
       end
       all_templatedata[key] = all_templates.join('')
 
       if key.empty?
-        delete_context
+        delete_settings
         all_templatedata[key]
       else
         all_templatedata
@@ -129,12 +129,12 @@ module Diversity
     #
     # @return [Hash]
     def settings
-      self.class.rendering_contexts[self] ||= Settings.new
+      self.class.settings[self] ||= Settings.new
     end
 
     # Deletes the rendering context for the current engine
-    def delete_context
-      self.class.rendering_contexts.delete(self)
+    def delete_settings
+      self.class.settings.delete(self)
     end
 
     def public_path(component)
@@ -153,7 +153,7 @@ module Diversity
     #
     # @param [Array] An array of Diversity::Component objects
     # @return [nil]
-    def update_context(components)
+    def update_settings(components)
       components.each do |component|
         component_path = public_path(component)
         settings.add_angular([component.angular].flatten)
@@ -168,7 +168,7 @@ module Diversity
     end
 
     class << self
-      attr_reader :rendering_contexts
+      attr_reader :settings
     end
 
     # Merges all content in a single key to a single string.
@@ -228,15 +228,15 @@ module Diversity
     # Given a schema key, returns the setting associated with that key
     # @param [Array] key
     # @param [Diversity::JsonSchema] settings
-    # @return [Array|nil]
+    # @return [Array]
     def self.extract_setting(key, settings)
       new_key = key.dup
       last = new_key.pop
       data = settings[new_key]
-      return nil unless data && !data.empty?
+      return [] unless data && !data.empty?
       setting = data[last]
-      return nil unless setting && !setting.empty?
-      setting
+      return [] unless setting && !setting.empty?
+      [setting].flatten # Always return an array
     end
 
     # Create a list of absolute paths from a base path and a list of
@@ -266,14 +266,14 @@ module Diversity
     # @param [String] template
     # @param [Hash] settings
     # @return [String]
-    def render_template(component, template, settings)
+    def render_template(component, template, context, settings)
       template_data = safe_load(template)
       return nil unless template_data # No need to render empty templates
       # Add data from API
-      context = component.resolve_context(@options[:backend_url], component.context)
-      settings = settings.keep_merge(context)
+      rcontext = component.resolve_context(context[:backend_url], context)
+      rcontext = settings.keep_merge({context: rcontext})
       # Return rendered data
-      Mustache.render(template_data, settings)
+      Mustache.render(template_data, rcontext)
     end
 
     # Compares two nodes by key_length and then key-by-key

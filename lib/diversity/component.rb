@@ -70,6 +70,10 @@ module Diversity
       client = JsonRpcClient.new(backend_url.to_s, asynchronous_calls: false)
       resolved_context = {}
       context.each_pair do |key, settings|
+        unless settings.is_a?(Hash)
+          resolved_context[key] = settings
+          next
+        end
         # Round 1 - Resolve context
         new_settings = settings.dup
         new_settings['params'].map! do |param|
