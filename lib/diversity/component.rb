@@ -37,7 +37,7 @@ module Diversity
     # @return [Diversity::Component]
     def initialize(resource, skip_validation = false)
       fail Diversity::Exception,
-           'Failed to load config file',
+           "Failed to load component configuration from #{resource}",
            caller unless (data = safe_load(resource))
       @configuration = Configuration.new
       if remote?(resource)
