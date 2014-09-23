@@ -9,6 +9,7 @@ require 'rubygems/requirement'
 require 'rubygems/version'
 require_relative 'common'
 require_relative 'exception'
+require_relative 'json_schema_cache'
 
 # https://raw.githubusercontent.com/DiversityTemplating/Diversity/master/validation/diversity.schema.json
 
@@ -16,6 +17,8 @@ module Diversity
   # Class representing an external component
   class Component
     include Common
+
+    attr_reader :checksum, :raw
 
     # Cmponent configuration
     Configuration =
@@ -147,7 +150,14 @@ module Diversity
       @configuration.type = hsh.fetch('type', nil)
       @configuration.pagetype = hsh.fetch('pagetype', nil)
       @configuration.context = hsh.fetch('context', {})
-      @configuration.settings = JsonSchema.new(hsh.fetch('settings', {}))
+      settings = hsh.fetch('settings', {})
+      if settings.is_a?(Hash)
+        @configuration.settings = JsonSchema.new(settings, nil)
+      elsif settings.is_a?(String)
+        @configuration.settings = JsonSchema.new({}, settings)
+      else
+        @configuration.settings = JsonSchema.new({}, nil)
+      end
       @configuration.angular = hsh.fetch('angular', nil)
       @configuration.angular = @configuration.name if @configuration.angular == true # If set to true, use component name
       @configuration.partials = hsh.fetch('partials', {})

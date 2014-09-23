@@ -1,4 +1,5 @@
 require 'json'
+require_relative 'json_object'
 
 module Diversity
   # An ordinary JsonObject blessed with the ability to validate other

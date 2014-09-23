@@ -17,8 +17,7 @@ SimpleCov.start do
 end
 
 require 'digest/sha1'
-require_relative '../lib/diversity/component.rb'
-require_relative '../lib/diversity/registry.rb'
+require_relative '../lib/diversity'
 
 describe 'Component' do
   should 'be able to load a local component by using file path' do
@@ -36,8 +35,9 @@ describe 'Component' do
     component.type.should.equal('object')
     component.pagetype.should.equal(nil)
     component.context.should.equal({})
-    component.settings.should.equal({})
-    component.settings_src.should.equal(nil)
+    component.settings.class.should.equal(Diversity::JsonSchema)
+    component.settings.data.should.equal({})
+    component.settings.source.should.equal(nil)
     component.angular.should.equal('dummy')
     component.partials.should.equal({})
     component.themes.should.equal([])
@@ -56,33 +56,33 @@ describe 'Component' do
     registry_path = File.expand_path(
       File.join(File.dirname(__FILE__), 'components')
     )
-    registry = Diversity::Registry.new(registry_path)
+    registry = Diversity::Registry::Local.new(registry_path)
     it '...by Rubygems version' do
-      registry.component_locally_installed?('dummy', Gem::Version.new('0.0.1')).should.equal(true)
+      registry.installed?('dummy', Gem::Version.new('0.0.1')).should.equal(true)
       comp = registry.get_component('dummy', Gem::Version.new('0.0.1'))
       comp.name.should.equal('dummy')
       comp.version.to_s.should.equal('0.0.1')
     end
     it '...by exact version string' do
-      registry.component_locally_installed?('dummy', '0.0.1').should.equal(true)
+      registry.installed?('dummy', '0.0.1').should.equal(true)
       comp = registry.get_component('dummy', '0.0.1')
       comp.name.should.equal('dummy')
       comp.version.to_s.should.equal('0.0.1')
     end
     it '...by fuzzy version string' do
-      registry.component_locally_installed?('dummy', '>0').should.equal(true)
+      registry.installed?('dummy', '>0').should.equal(true)
       comp = registry.get_component('dummy', '>0')
       comp.name.should.equal('dummy')
       comp.version.to_s.should.equal('0.0.1')
     end
     it '...by fuzzy version string (take 2)' do
-      registry.component_locally_installed?('dummy', '^0.0.1').should.equal(true)
+      registry.installed?('dummy', '^0.0.1').should.equal(true)
       comp = registry.get_component('dummy', '^0.0.1')
       comp.name.should.equal('dummy')
       comp.version.to_s.should.equal('0.0.1')
     end
     it '...by fuzzy version string (take 3)' do
-      registry.component_locally_installed?('something-special', '^0.5.0').should.equal(true)
+      registry.installed?('something-special', '^0.5.0').should.equal(true)
       comp = registry.get_component('something-special', '^0.5.0')
       comp.name.should.equal('something-special')
       comp.version.to_s.should.equal('0.5.5')
@@ -94,7 +94,7 @@ describe 'Component' do
     registry_path = File.expand_path(
       File.join(File.dirname(__FILE__), 'components')
     )
-    registry = Diversity::Registry.new(registry_path)
+    registry = Diversity::Registry::Local.new(registry_path)
     comp = registry.get_component('weak-sauce', '0.0.4')
     comp.class.should.equal(Diversity::Component)
     comp.name.should.equal('weak-sauce')
@@ -104,7 +104,7 @@ describe 'Component' do
     all_comps.each { |e| e.class.should.equal(Diversity::Component) }
     all_comps.first.name.should.equal('something-special')
     all_comps.first.version.to_s.should.equal('0.5.5')
-    all_comps.first.settings_src.should.equal('schema.json')
+    all_comps.first.settings.source.should.equal('schema.json')
     all_comps.last.name.should.equal('weak-sauce')
     all_comps.last.version.to_s.should.equal('0.0.4')
   end
@@ -112,7 +112,7 @@ describe 'Component' do
   should 'be able to install/uninstall a component' do
     registry_path = File.expand_path(Dir.mktmpdir)
     begin
-      registry = Diversity::Registry.new(registry_path)
+      registry = Diversity::Registry::Local.new(registry_path)
       registry.install_component(
         File.expand_path(
           File.join(
@@ -121,12 +121,12 @@ describe 'Component' do
           )
         )
       )
-      registry.component_locally_installed?('dummy', Gem::Version.new('0.0.1')).should.equal(true)
+      registry.installed?('dummy', Gem::Version.new('0.0.1')).should.equal(true)
       comp = registry.get_component('dummy', Gem::Version.new('0.0.1'))
       comp.name.should.equal('dummy')
       comp.version.to_s.should.equal('0.0.1')
       registry.uninstall_component('dummy', '0.0.1')
-      registry.component_locally_installed?('dummy', Gem::Version.new('0.0.1')).should.equal(false)
+      registry.installed?('dummy', Gem::Version.new('0.0.1')).should.equal(false)
       comp = registry.get_component('dummy', Gem::Version.new('0.0.1'))
       comp.should.equal(nil)
     ensure
@@ -137,16 +137,16 @@ describe 'Component' do
   should 'be able to install/uninstall a component from the web' do
     registry_path = File.expand_path(Dir.mktmpdir)
     begin
-      registry = Diversity::Registry.new(registry_path)
+      registry = Diversity::Registry::Local.new(registry_path)
       registry.install_component(
         'http://diversity.io/textalk-webshop-native-components/' \
         'tws-bootstrap/raw/master/diversity.json'
       )
-      registry.component_locally_installed?('tws-bootstrap', '>0').should.equal(true)
+      registry.installed?('tws-bootstrap', '>0').should.equal(true)
       comp = registry.get_component('tws-bootstrap', '>0')
       comp.name.should.equal('tws-bootstrap')
       registry.uninstall_component('tws-bootstrap', '0.0.1')
-      registry.component_locally_installed?('tws-bootstrap', '>0').should.equal(false)
+      registry.installed?('tws-bootstrap', '>0').should.equal(false)
       comp = registry.get_component('tws-bootstrap', '>0')
       comp.should.equal(nil)
     ensure
@@ -157,7 +157,7 @@ describe 'Component' do
   should 'fail when config file cannot be loaded' do
     ->() { Diversity::Component.new('nonexisting.json') }
       .should.raise(Diversity::Exception).message
-      .should.match(/Failed to load config file/)
+      .should.match(/Failed to load component configuration from nonexisting.json/)
   end
 
   should 'fail when config file cannot be parsed as valid JSON' do
@@ -166,6 +166,8 @@ describe 'Component' do
       .should.match(/Failed to parse config file/)
   end
 
+=begin
+  # This test should be reenabled when when validation is enabled again
   should 'fail when settings file cannot be parsed as valid JSON' do
     lambda do
       Diversity::Component.new(
@@ -177,11 +179,12 @@ describe 'Component' do
     .should.raise(Diversity::Exception).message
     .should.match(/Failed to parse settings schema/)
   end
+=end
 
   should 'allow registry to work in different modes' do
     [:dryrun, :nowrite, :verbose].each do |mode|
       registry_path = File.expand_path(Dir.mktmpdir)
-      registry = Diversity::Registry.new(registry_path, mode: mode)
+      registry = Diversity::Registry::Local.new(registry_path, mode: mode)
       registry.install_component(
         File.join(
           File.dirname(__FILE__), 'components', 'something-special', '0.5.5', 'diversity.json'
@@ -193,10 +196,12 @@ describe 'Component' do
     end
   end
 
+=begin
+  # This test should be reenabled when the diversity-api backend is ready
   should 'be able to handle complex dependencies' do
     registry_path = File.expand_path(Dir.mktmpdir)
     begin
-      registry = Diversity::Registry.new(registry_path)
+      registry = Diversity::Registry::Local.new(registry_path)
       registry.install_component(
         'http://diversity.io/textalk-webshop-native-components/' \
         'tws-checkout/raw/master/diversity.json'
@@ -228,5 +233,38 @@ describe 'Component' do
       FileUtils.remove_entry_secure registry_path
     end
   end
+=end
 
 end
+
+=begin
+# Fix later
+describe 'Engine' do
+  should 'be able to render a simple component' do
+    registry_path = File.expand_path(Dir.mktmpdir)
+    begin
+      registry = Diversity::Registry::Local.new(registry_path)
+      registry.install_component(
+        'http://diversity.io/textalk-webshop-native-components/tws-custom-html/raw/master/diversity.json'
+      )
+      component = registry.get_component('tws-custom-html')
+      engine = Diversity::Engine.new({registry: registry})
+      context = {'lang' => 'sv'}
+      settings = Diversity::JsonObject.new(
+        {
+          'custom_html' => {
+            'lang' => {
+              'en' => "<p>I'm a custom component!</p>",
+              'sv' => "<p>Jag är en anpassad component!</p>"
+            }
+          }
+        }
+      )
+      engine.render(component, context, settings).inspect
+      true.should.equal(true)
+    ensure
+      FileUtils.remove_entry_secure registry_path
+    end
+  end
+end
+=end

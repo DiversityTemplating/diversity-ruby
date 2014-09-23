@@ -1,4 +1,5 @@
 require 'cache'
+require_relative 'json_schema'
 
 module Diversity
   # Class used for caching schemas so that they don't need to be fetched
