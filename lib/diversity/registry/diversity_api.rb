@@ -12,7 +12,8 @@ module Diversity
 
       # Default options
       DEFAULT_OPTIONS = {
-        backend_url: nil
+        backend_url: nil,
+        skip_validation: false
       }
 
       def initialize(options = {})
@@ -29,13 +30,18 @@ module Diversity
         components.each do |component|
           version_objs = get_installed_versions(component[:name])
           version_objs.each do |version_obj|
-            component_objs <<
-              Component.new(
-                File.join(
-                  @options[:backend_url], 'components', component[:name],
-                  version_obj.to_s, 'files', 'diversity.json'
+            begin
+              component_objs <<
+                Component.new(
+                  File.join(
+                    @options[:backend_url], 'components', component[:name],
+                    version_obj.to_s, 'files', 'diversity.json'
+                  ),
+                  @options[:skip_validation]
                 )
-              )
+            rescue Exception => err
+              next # Silently ignore non-working components
+            end
           end
         end
         component_objs
