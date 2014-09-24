@@ -272,6 +272,21 @@ module Diversity
       # Add data from API
       rcontext = component.resolve_context(context[:backend_url], context)
       rcontext = settings.keep_merge({context: rcontext})
+      # Add some tasty Mustache lambdas
+      rcontext['currency'] =
+        lambda do |text, render|
+          # TODO: Fix currency until we decide how to it
+          text.gsub(/currency/, 'SEK')
+        end
+      rcontext['gettext'] =
+        lambda do |text|
+          # TODO: Maybe, maybe not, But later anyway
+          text
+        end
+      rcontext['lang'] = lambda do |text|
+        # TODO: Fix language until we decide how to set it
+        text.gsub(/lang/, 'sv')
+      end
       # Return rendered data
       Mustache.render(template_data, rcontext)
     end
