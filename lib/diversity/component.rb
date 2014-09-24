@@ -18,6 +18,10 @@ module Diversity
   class Component
     include Common
 
+    MASTER_COMPONENT_SCHEMA =
+      'https://raw.githubusercontent.com/DiversityTemplating/' \
+      'Diversity/master/validation/diversity.schema.json'
+
     attr_reader :checksum, :raw
 
     # Cmponent configuration
@@ -50,7 +54,7 @@ module Diversity
         @configuration.src = File.expand_path(resource)
         @configuration.base_path = File.dirname(@configuration.src)
       end
-      schema = JsonSchemaCache[File.join(File.dirname(__FILE__), 'diversity.schema.json')]
+      schema = JsonSchemaCache[MASTER_COMPONENT_SCHEMA]
       schema.validate(data) unless skip_validation
       @raw = parse_config(data)
       @checksum = Digest::SHA1.hexdigest(dump)

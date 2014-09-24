@@ -6,7 +6,11 @@ module Diversity
   # more than once
   class JsonSchemaCache
     extend Common
-    @cache = Cache.new
+
+    # Create a new cache
+    # Max number of cached items: 100
+    # Expiration time: 3600 seconds (1 hour)
+    @cache = Cache.new({expiration: 3600, max_num: 100})
 
     # Returns the JSON schema denoted by key
     #
@@ -16,6 +20,14 @@ module Diversity
       return @cache[key] if @cache.cached?(key)
       @cache[key] = load_json(key, JsonSchema)
       @cache[key]
+    end
+
+    # Purges one (or all) items from the cache
+    #
+    # @param [String] key
+    # @return [Object]
+    def self.purge(key = nil)
+      key ? @cache.invalidate(key) : @cache.invalidate_all
     end
   end
 end
