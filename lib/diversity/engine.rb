@@ -271,12 +271,9 @@ module Diversity
       return nil unless template_data # No need to render empty templates
       # Add data from API
       rcontext = component.resolve_context(context[:backend_url], context)
-      rcontext = settings.keep_merge(rcontext)
+      rcontext = settings.keep_merge({context: rcontext})
       # Return rendered data
-      p rcontext
-      res = Mustache.render(template_data, rcontext)
-      p res
-      res
+      Mustache.render(template_data, rcontext)
     end
 
     # Compares two nodes by key_length and then key-by-key
