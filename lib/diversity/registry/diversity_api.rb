@@ -13,11 +13,13 @@ module Diversity
       # Default options
       DEFAULT_OPTIONS = {
         backend_url: nil,
+        cache_options: { expiration: 3600, max_num: 100 },
         skip_validation: false
       }
 
       def initialize(options = {})
         @options = DEFAULT_OPTIONS.merge(options)
+        @cache = Cache.new(@options[:cache_options])
         fail 'Invalid backend URL!' unless ping_ok
       end
 
@@ -47,6 +49,29 @@ module Diversity
         component_objs
       end
 
+      def cache_contains?(url)
+        @cache.cached?(url)
+      end
+
+      # Purges the cache for a specific URL
+      #
+      # @param [String]
+      # @return [Object]
+      def cache_purge(url = nil)
+        url ? @cache.invalidate(url) : @cache.invalidate_all
+      end
+
+      # Return statistics about cached objects
+      def cache_stats
+        cache_size, num_items, num_hits, num_misses  = @cache.statistics
+        {
+          cache_size: cache_size,
+          num_items: num_items,
+          num_hits: num_hits,
+          num_misses: num_misses
+        }
+      end
+
       private
 
       # Calls the diversity REST Api and parses the response
@@ -54,15 +79,16 @@ module Diversity
       # @param [Array] path
       # @return Hash
       def call_api(*path)
-        # TODO: Caching
         url = @options[:backend_url]
         path.each do |part|
           url = File.join(url, part)
         end
+        return @cache[url] if @cache.cached?(url)
         response = Unirest.get(url)
         fail 'Error when calling API' unless response.code == 200
         fail 'Invalid content type' unless response.headers[:content_type] == 'application/json'
-        JSON.parse(response.raw_body, symbolize_names: true)
+        @cache[url] = JSON.parse(response.raw_body, symbolize_names: true)
+        @cache[url]
       end
 
       # Returns a list of available versions for a specific component

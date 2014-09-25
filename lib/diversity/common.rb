@@ -24,8 +24,18 @@ module Diversity
       if req == '*'
         req = '>0'
       elsif /^\^(.*)/ =~ req
-        # Watch out for those crazy hats!
-        version = Gem::Version.new($LAST_MATCH_INFO[1])
+        begin
+          req = $LAST_MATCH_INFO[1]
+          version = Gem::Version.new(req)
+        rescue ArgumentError => err
+          # Invalid requirement, try again with all wildcards removed
+          begin
+            req.gsub!(/[^\d\.]/, '')
+            version = version = Gem::Version.new(req)
+          rescue ArgumentError
+            fail Diversity::Exception, "Invalid requirement #{req}"
+          end
+        end
         if version < Gem::Version.new('0.1.0')
           req = "=#{version}"
         elsif version < Gem::Version.new('1.0.0')

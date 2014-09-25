@@ -10,7 +10,7 @@ module Diversity
     # Create a new cache
     # Max number of cached items: 100
     # Expiration time: 3600 seconds (1 hour)
-    @cache = Cache.new({expiration: 3600, max_num: 100})
+    @cache = Cache.new({ expiration: 3600, max_num: 100 })
 
     # Returns the JSON schema denoted by key
     #
