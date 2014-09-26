@@ -1,0 +1,19 @@
+{
+  "context": {
+    "backend_url": "https://shop.textalk.se/backend/jsonrpc",
+    "webshop_uid": 11011,
+    "webshop_url": "shop.humle.se"
+  },
+  "registry": {
+    "type": "Local",
+    "options": {
+      "base_path": "/home/lasso/components.local"
+    }
+  },
+  "server": {
+    "port": 9999
+  },
+  "settings": {
+    "source": "examples/settings.sample.json"
+  }
+}

@@ -9,33 +9,40 @@ module Diversity
     # Class representing a list of locally installed Component objects
     class Local < Base
       # Glob representing locally installed component configurations
-      GLOB = '*/*/diversity.json'
+      DEFAULT_OPTIONS = {
+        base_path: nil,
+        mode:      :default
+      }
 
-      attr_reader :base_path, :mode
+      GLOB = '*/*/diversity.json'
 
       # Constructor
       #
       # @param [String] base_path
       # @param [Hash] options
-      # @return Diversity::LocalRegistry
-      def initialize(base_path, options = {})
-        @base_path = File.expand_path(base_path)
-        @mode = options.key?(:mode) ? options[:mode].to_sym : :default
-        fileutils.mkdir_p(@base_path) unless File.exist?(@base_path)
+      # @return Diversity::Registry::Local
+      def initialize(options = {})
+        @options = DEFAULT_OPTIONS.merge(options)
+        @options[:base_path] = File.expand_path(@options[:base_path])
+        fileutils.mkdir_p(@options[:base_path]) unless File.exist?(@options[:base_path])
+      end
+
+      def base_path
+        @options[:base_path]
       end
 
       # Returns a list of locally installed components
       #
       # @return [Array] An array of Component objects
       def installed_components
-        return self.class.installed_components[@base_path] if
-          self.class.installed_components.key?(@base_path)
-        Dir.chdir(@base_path) do
-          self.class.installed_components[@base_path] = Dir.glob(GLOB).reduce([]) do |res, cfg|
+        return self.class.installed_components[@options[:base_path]] if
+          self.class.installed_components.key?(@options[:base_path])
+        Dir.chdir(@options[:base_path]) do
+          self.class.installed_components[@options[:base_path]] = Dir.glob(GLOB).reduce([]) do |res, cfg|
             res << Component.new(cfg, true) # No need to validate here
           end
         end
-        self.class.installed_components[@base_path]
+        self.class.installed_components[@options[:base_path]]
       end
 
       # Installs a component locally. If the component is already installed, it will not be
@@ -54,14 +61,18 @@ module Diversity
           force || !installed?(name, version)
         # TODO: Make sure comp.name is a usable name
         res_path = remote?(res) ? uri_base_path(res) : File.dirname(File.expand_path(res))
-        install_path = File.join(@base_path, name, version.to_s)
+        install_path = File.join(@options[:base_path], name, version.to_s)
         fileutils.mkdir_p(install_path)
         config_path = File.join(install_path, 'diversity.json')
         write_file(config_path, comp.dump, comp.src)
         copy_component_files(comp, res_path, install_path)
         # Invalidate cache (unless we are faking the installation)
-        self.class.installed_components.delete(@base_path) unless noop?
+        self.class.installed_components.delete(@options[:base_path]) unless noop?
         noop? ? comp : load_component(config_path)
+      end
+
+      def mode
+        @options[:mode]
       end
 
       # Removes a locally installed component from the file system
@@ -76,7 +87,7 @@ module Diversity
           fileutils.rm_rf(comp.base_path)
         end
         # Invalidate cache (unless we are faking the uninstallation)
-        self.class.installed_components.delete(@base_path) unless noop?
+        self.class.installed_components.delete(@options[:base_path]) unless noop?
         uninstalled_versions
       end
 
