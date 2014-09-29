@@ -38,10 +38,12 @@ def parse_configuration(config)
                     "#{config[:registry][:type]}."
   end
   registry = registry_class.new(config[:registry][:options])
-  engine = Diversity::Engine.new(
-    public_path: '/components', registry: registry
-  )
-  { engine: engine, registry: registry }
+  engine_options = {registry: registry}
+  # If we are using a local repository, expose component files
+  if registry.is_a?(Diversity::Registry::Local)
+    engine_options[:public_path] = '/components'
+  end
+  { engine: Diversity::Engine.new(engine_options), registry: registry }
 end
 
 def parse_config_file(file)
@@ -107,12 +109,15 @@ get '/' do
   options[:engine].render(theme_component, context, settings)
 end
 
-get '/components/*' do
-  # For now, this will only work for *local* registrys
-  path = File.join(options[:registry].base_path, params['splat'].first)
-  if File.exist?(path)
-    File.read(path)
-  else
-    halt 404
+# If we are running a local registry, make sure we expose files from
+# the registry in a consistent way
+if options[:registry].is_a?(Diversity::Registry::Local)
+  get '/components/*' do
+    path = File.join(options[:registry].base_path, params['splat'].first)
+    if File.exist?(path)
+      send_file(path)
+    else
+      halt 404
+    end
   end
 end
