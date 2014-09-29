@@ -24,11 +24,9 @@ module Diversity
             fail Diversity::Exception,
                  "Failed to load dependency #{name} [#{req}]",
                  caller unless component
-            dependencies.concat expand_component_list(component) unless dependencies.any? do |dep|
-              component.name == dep.name && component.version == dep.version
-            end || components.any? do |comp|
-              component.name == comp.name && component.version == comp.version
-            end
+            dependencies.concat expand_component_list(component) unless
+              dependencies.any? { |dep|  component == dep  } ||
+              components.any?   { |comp| component == comp }
           end
         end
         (dependencies << components).flatten

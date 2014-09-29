@@ -108,6 +108,34 @@ module Diversity
       resolved_context
     end
 
+    def <(other_component)
+      (self<=>(other_component)) == -1
+    end
+
+    def <=(other_component)
+      (self<=>(other_component)) != 1
+    end
+
+    def >(other_component)
+      (self<=>(other_component)) == 1
+    end
+
+    def >=(other_component)
+      (self<=>(other_component)) != -1
+    end
+
+    def <=>(other_component)
+      return 0 unless other_component.is_a?(Diversity::Component)
+      return @configuration.name <=> other_component.name if
+        @configuration.name != other_component.name
+      @configuration.version <=> other_component.version
+    end
+
+    def ==(other_component)
+      return false unless other_component.is_a?(Diversity::Component)
+      @checksum == other_component.checksum
+    end
+
     private
 
     # Parses requirement strings and creates requirements that matches the requirements
