@@ -24,26 +24,45 @@ def load_sinatra_or_die
   end
 end
 
-def parse_configuration(config)
-  exit_with_error 'Configuration does not specify a registry.' unless
-    config.key?(:registry)
+def get_registry(config)
   exit_with_error 'Configuration does not specify a registry type.' unless
-    config[:registry].key?(:type)
-  require_relative '../lib/diversity.rb'
+    config.key?(:type)
   begin
     registry_class =
-      Diversity::Registry.const_get(config[:registry][:type])
+      Diversity::Registry.const_get(config[:type])
   rescue NameError
     exit_with_error 'Configuration specifies invalid registry type ' \
-                    "#{config[:registry][:type]}."
+                    "#{config[:type]}."
   end
-  registry = registry_class.new(config[:registry][:options])
+  registry_class.new(config[:options] || {})
+end
+
+def parse_configuration(config)
+  require_relative '../lib/diversity.rb'
+  registry = get_registry(config[:registry] || {})
   engine_options = {registry: registry}
   # If we are using a local repository, expose component files
   if registry.is_a?(Diversity::Registry::Local)
     engine_options[:public_path] = '/components'
   end
-  { engine: Diversity::Engine.new(engine_options), registry: registry }
+  # Check if the configuration contains information about what to use
+  # as a "main component"
+  if config.key?(:main_component) && config[:main_component].is_a?(Hash)
+    mc_name =    config[:main_component][:name].to_s if
+                   config[:main_component].key?(:name)
+    mc_version = config[:main_component][:version].to_s if
+                   config[:main_component].key?(:version)
+  end
+  mc_name ||= 'tws-theme'
+  mc_version ||= '*'
+  main_component = registry.get_component(mc_name, mc_version)
+  fail "Cannot load main component #{mc_name} (#{mc_version})" unless
+    main_component.is_a?(Diversity::Component)
+  {
+    engine:         Diversity::Engine.new(engine_options),
+    main_component: main_component,
+    registry:       registry
+  }
 end
 
 def parse_config_file(file)
@@ -104,9 +123,8 @@ get '/' do
   settings =
     Diversity::JsonSchemaCache[options[:configuration][:settings][:source]]
 
-  # Load theme component
-  theme_component = options[:registry].get_component('tws-theme')
-  options[:engine].render(theme_component, context, settings)
+  # Render the main component
+  options[:engine].render(options[:main_component], context, settings)
 end
 
 # If we are running a local registry, make sure we expose files from

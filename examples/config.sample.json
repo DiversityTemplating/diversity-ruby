@@ -4,6 +4,10 @@
     "webshop_uid": 11011,
     "webshop_url": "shop.humle.se"
   },
+  "main_component": {
+    "name": "tws-theme",
+    "version": "*"
+  },
   "registry": {
     "type": "Local",
     "options": {
