@@ -13,6 +13,26 @@ module Diversity
       %r{^(https?|ftp)://.*$} =~ res.to_s
     end
 
+    # Create a list of absolute paths from a base path and a list of
+    # relative paths.
+    #
+    # @param [String] base_path
+    # @param [Enumerable|String] file_list
+    # @return [Array]
+    def expand_relative_paths(base_path, file_list)
+      return nil if file_list.nil?
+      if file_list.respond_to?(:each)
+        file_list.map do |file|
+          res = file.to_s
+          remote?(res) ? res : File.join(base_path, res)
+        end
+      else
+        f = file_list.to_s
+        return file_list if f.empty?
+        remote?(f) ? f : File.join(base_path, f)
+      end
+    end
+
     # Normalizes a requirement string so that it can be parsed by Gem::Requirement
     #
     # @param [String] requirement_string

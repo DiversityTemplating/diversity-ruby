@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-require 'pp'
+require 'unirest'
 
 def check_ruby_version
   if RUBY_VERSION.split('.').first.to_i != 2
@@ -24,6 +24,14 @@ def load_sinatra_or_die
   end
 end
 
+def get_canonical_url(env)
+  host = env['HTTP_HOST']
+  host.gsub!(/\:\d+$/, '') # Remove port
+  host.gsub!(/\.diversity$/, '') # Remove .diversity
+  path = env['REQUEST_PATH'].empty? ? '/' : env['REQUEST_PATH']
+  "http://#{host}#{path}"
+end
+
 def get_registry(config)
   exit_with_error 'Configuration does not specify a registry type.' unless
     config.key?(:type)
@@ -37,7 +45,19 @@ def get_registry(config)
   registry_class.new(config[:options] || {})
 end
 
+def get_url_info(backend, page)
+  data = {
+    jsonrpc: '2.0',
+    method: 'Url.get',
+    params: [page, true],
+    id: 1
+  }
+  result = Unirest.post(backend[:url], parameters: data.to_json)
+  JSON.parse(result.raw_body, symbolize_names: true)[:result]
+end
+
 def parse_configuration(config)
+  backend = config[:backend] || nil
   require_relative '../lib/diversity.rb'
   registry = get_registry(config[:registry] || {})
   engine_options = {registry: registry}
@@ -59,6 +79,7 @@ def parse_configuration(config)
   fail "Cannot load main component #{mc_name} (#{mc_version})" unless
     main_component.is_a?(Diversity::Component)
   {
+    backend:        backend,
     engine:         Diversity::Engine.new(engine_options),
     main_component: main_component,
     registry:       registry
@@ -116,8 +137,14 @@ if options[:configuration].key?(:server)
 end
 
 get '/' do
-  # For now, we use the same context for all requests
-  context = options[:configuration][:context]
+  canonical_url = get_canonical_url(request.env)
+  url_info = get_url_info(options[:backend], canonical_url)
+
+  context = {
+    backend_url: options[:backend][:url],
+    webshop_uid: url_info[:webshop],
+    webshop_url: Addressable::URI.parse(canonical_url).host
+  }
 
   # For now, we use the same settings for all requests
   settings =

@@ -3,27 +3,48 @@ require 'mustache'
 module Diversity
   # Class for rendering Diversity components
   class Engine
-    include Common
+    extend Common
 
     # A simple wrapper for the context used when rendering
     class Settings
-      ivars = [:angular, :scripts, :styles]
-      define_method :initialize do
-        ivars.each do |ivar|
-          instance_variable_set "@#{ivar}".to_sym, []
-        end
+
+      def initialize(registry)
+        @component_set = Diversity::Registry::Set.new(registry)
+        @paths = {}
       end
-      ivars.each do |ivar|
-        ivar_ref = "@#{ivar}".to_sym
-        define_method "add_#{ivar}".to_sym do |values|
-          values.each do |value|
-            next unless value # No nils or falsies allowed!
-            ivar_obj = instance_variable_get(ivar_ref)
-            ivar_obj << value unless ivar_obj.include?(value)
+
+      def add_component(component, path)
+        @component_set << component
+        @paths[component.checksum] = path
+      end
+
+      def angular
+        @component_set.to_a.inject([]) do |angular, comp|
+          if comp.angular
+            angular << comp.angular
+          else
+            angular
           end
         end
-        define_method ivar do
-          instance_variable_get(ivar_ref)
+      end
+
+      def scripts
+        @component_set.to_a.inject([]) do |scripts, comp|
+          scripts.concat(
+            Diversity::Engine.expand_relative_paths(
+              @paths[comp.checksum], comp.scripts
+            )
+          )
+        end
+      end
+
+      def styles
+        @component_set.to_a.inject([]) do |styles, comp|
+          styles.concat(
+            Diversity::Engine.expand_relative_paths(
+              @paths[comp.checksum], comp.styles
+            )
+          )
         end
       end
     end
@@ -110,7 +131,7 @@ module Diversity
       end
 
       templates = component.templates.map do |template|
-        expand_component_paths(component.base_path, template)
+        self.class.expand_relative_paths(component.base_path, template)
       end
 
       all_templates = []
@@ -133,7 +154,7 @@ module Diversity
     #
     # @return [Hash]
     def settings
-      self.class.settings[self] ||= Settings.new
+      self.class.settings[self] ||= Settings.new(@options[:registry])
     end
 
     # Deletes the rendering context for the current engine
@@ -159,14 +180,7 @@ module Diversity
     # @return [nil]
     def update_settings(components)
       components.each do |component|
-        component_path = public_path(component)
-        settings.add_angular([component.angular].flatten)
-        settings.add_scripts(
-          expand_component_paths(component_path, component.scripts)
-        )
-        settings.add_styles(
-          expand_component_paths(component_path, component.styles)
-        )
+        settings.add_component(component, public_path(component))
       end
       nil
     end
@@ -243,26 +257,6 @@ module Diversity
       [setting].flatten # Always return an array
     end
 
-    # Create a list of absolute paths from a base path and a list of
-    # relative paths.
-    #
-    # @param [String] base_path
-    # @param [Enumerable|String] file_list
-    # @return [Array]
-    def expand_component_paths(base_path, file_list)
-      return nil if file_list.nil?
-      if file_list.respond_to?(:each)
-        file_list.map do |file|
-          res = file.to_s
-          remote?(res) ? res : File.join(base_path, res)
-        end
-      else
-        f = file_list.to_s
-        return file_list if f.empty?
-        remote?(f) ? f : File.join(base_path, f)
-      end
-    end
-
     # Given a component, a mustache template and some settings, return
     # a rendered HTML string.
     #
@@ -271,7 +265,7 @@ module Diversity
     # @param [Hash] settings
     # @return [String]
     def render_template(component, template, context, settings)
-      template_data = safe_load(template)
+      template_data = self.class.safe_load(template)
       return nil unless template_data # No need to render empty templates
       # Add data from API
       rcontext = component.resolve_context(context[:backend_url], context)

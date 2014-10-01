@@ -1,8 +1,6 @@
 {
-  "context": {
-    "backend_url": "https://shop.textalk.se/backend/jsonrpc",
-    "webshop_uid": 11011,
-    "webshop_url": "shop.humle.se"
+  "backend": {
+    "url": "https://shop.textalk.se/backend/jsonrpc/v1"
   },
   "main_component": {
     "name": "tws-theme",

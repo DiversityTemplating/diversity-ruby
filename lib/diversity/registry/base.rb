@@ -4,32 +4,16 @@ module Diversity
     # This class is the superclass of all registry classes
     class Base
       include Common
+
       # Takes a list of components, loads all of their dependencies and returns a combined list of
       # components. Dependencies will only be included once.
       #
       # @param [Array] components An array of components
       # @return [Array] An expanded array of components
       def expand_component_list(*components)
-        components.flatten!
-        dependencies = []
-        components.each do |component|
-          component.dependencies.each_pair do |name, req|
-            if req.is_a?(Addressable::URI) || req.is_a?(URI)
-              component = load_component(req.to_s)
-            elsif req.is_a?(Gem::Requirement)
-              component = get_component(name, req)
-            else
-              fail Diversity::Exception, "Invalid dependency #{dependency}", caller
-            end
-            fail Diversity::Exception,
-                 "Failed to load dependency #{name} [#{req}]",
-                 caller unless component
-            dependencies.concat expand_component_list(component) unless
-              dependencies.any? { |dep|  component == dep  } ||
-              components.any?   { |comp| component == comp }
-          end
-        end
-        (dependencies << components).flatten
+        set = Diversity::Registry::Set.new(self)
+        components.flatten.each { |component| set << component }
+        set.to_a
       end
 
       # Returns an installed version (or nil if the component does not exist).
