@@ -24,12 +24,21 @@ def load_sinatra_or_die
   end
 end
 
-def get_canonical_url(env)
-  host = env['HTTP_HOST']
-  host.gsub!(/\:\d+$/, '') # Remove port
-  host.gsub!(/\.diversity$/, '') # Remove .diversity
+def get_canonical_url(request_env, app_env)
+  host = request_env['HTTP_HOST']
+  if app_env.key?(:host)
+    host =
+      case app_env[:host][:type]
+      when 'regexp'
+        host.gsub(Regexp.new(app_env[:host][:pattern]), '\1')
+      when 'string'
+        app_env[:host][:name]
+      else
+        host # Leave host as-is
+      end
+  end
   path = env['REQUEST_PATH'].empty? ? '/' : env['REQUEST_PATH']
-  "http://#{host}#{path}"
+  "#{host}#{path}"
 end
 
 def get_registry(config)
@@ -80,6 +89,7 @@ def parse_configuration(config)
     main_component.is_a?(Diversity::Component)
   {
     backend:        backend,
+    environment:    config[:environment] || {},
     engine:         Diversity::Engine.new(engine_options),
     main_component: main_component,
     registry:       registry
@@ -128,30 +138,11 @@ require 'sinatra'
 # Available settings can be found at
 # http://rubydoc.info/gems/sinatra#Available_Settings
 if options[:configuration].key?(:server)
-  options[:configuration][:server]
   configure do
     options[:configuration][:server].each_pair do |key, value|
       set key, value
     end
   end
-end
-
-get '/' do
-  canonical_url = get_canonical_url(request.env)
-  url_info = get_url_info(options[:backend], canonical_url)
-
-  context = {
-    backend_url: options[:backend][:url],
-    webshop_uid: url_info[:webshop],
-    webshop_url: Addressable::URI.parse(canonical_url).host
-  }
-
-  # For now, we use the same settings for all requests
-  settings =
-    Diversity::JsonSchemaCache[options[:configuration][:settings][:source]]
-
-  # Render the main component
-  options[:engine].render(options[:main_component], context, settings)
 end
 
 # If we are running a local registry, make sure we expose files from
@@ -165,4 +156,31 @@ if options[:registry].is_a?(Diversity::Registry::Local)
       halt 404
     end
   end
+end
+
+get '*' do
+  p options.keys
+  canonical_url = get_canonical_url(request.env, options[:environment])
+
+  # Work around bug in API that incorrectly forces us to specify protocol
+  url_info = get_url_info(options[:backend], 'http://' + canonical_url)
+  #url_info = get_url_info(options[:backend], canonical_url)
+
+  backend_url_without_scheme =
+    Addressable::URI.parse(options[:backend][:url])
+  backend_url_without_scheme.scheme = nil
+  backend_url_without_scheme = backend_url_without_scheme.to_s[2..-1]
+
+  context = {
+    backend_url: backend_url_without_scheme,
+    webshop_uid: url_info[:webshop],
+    webshop_url: 'http://' + Addressable::URI.parse('http://' + canonical_url).host
+  }
+
+  # For now, we use the same settings for all requests
+  settings =
+    Diversity::JsonSchemaCache[options[:configuration][:settings][:source]]
+
+  # Render the main component
+  options[:engine].render(options[:main_component], context, settings)
 end

@@ -46,9 +46,7 @@ module Diversity
           fail Diversity::Exception, "Invalid version #{version}", caller
         end
         # Find all matching components and sort them by their version (in descending order)
-        installed_components.select(&finder).sort do |first, second|
-          first.version <=> second.version
-        end
+        installed_components.select(&finder).sort
       end
 
       # Checks whether a component with a specified version is installed.

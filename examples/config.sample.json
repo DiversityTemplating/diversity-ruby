@@ -2,6 +2,12 @@
   "backend": {
     "url": "https://shop.textalk.se/backend/jsonrpc/v1"
   },
+  "environment": {
+    "host": {
+      "type": "regexp",
+      "pattern": "(.+).diversity:9999$"
+    }
+  },
   "main_component": {
     "name": "tws-theme",
     "version": "*"

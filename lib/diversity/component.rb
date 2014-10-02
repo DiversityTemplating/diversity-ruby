@@ -128,7 +128,8 @@ module Diversity
       return 0 unless other_component.is_a?(Diversity::Component)
       return @configuration.name <=> other_component.name if
         @configuration.name != other_component.name
-      @configuration.version <=> other_component.version
+      # Return newer versions before older ones
+      other_component.version <=> @configuration.version
     end
 
     def ==(other_component)
