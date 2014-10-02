@@ -159,7 +159,6 @@ if options[:registry].is_a?(Diversity::Registry::Local)
 end
 
 get '*' do
-  p options.keys
   canonical_url = get_canonical_url(request.env, options[:environment])
 
   # Work around bug in API that incorrectly forces us to specify protocol
