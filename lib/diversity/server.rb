@@ -17,110 +17,116 @@ module Diversity
     end
     
     def run
-      pp @options
-      ARGV.clear
-
-      require 'sinatra/base'
-      application = Class.new(Sinatra::Base)
-      application.class_eval do
-        get '/' do
-          'craxy'
-        end
-      end
-
-      #require_relative 'application'
-      application.run!(@options[:configuration][:server] || {})
-
+      build_application.run!(@options[:configuration][:server] || {})
     end
     
     private
+
+    def build_application
+      options = @options # To use options inside class_eval
+      require 'sinatra/base'
+      application = Class.new(Sinatra::Base)
+      application.class_eval do
+        helpers Sinatra::DiversityHelper
+        # If we are running a local registry, make sure we expose files from
+        # the registry in a consistent way
+        if options[:registry].is_a?(Diversity::Registry::Local)
+          get '/components/*' do
+            path = File.join(options[:registry].base_path, params['splat'].first)
+            if File.exist?(path)
+              send_file(path)
+            else
+              halt 404
+            end
+          end
+        end
+        get '*' do
+          canonical_url = get_canonical_url(request.env, options[:environment])
+
+          # Work around bug in API that incorrectly forces us to specify protocol
+          url_info = get_url_info(options[:backend], 'http://' + canonical_url)
+          #url_info = get_url_info(options[:backend], canonical_url)
+
+          backend_url_without_scheme =
+            Addressable::URI.parse(options[:backend][:url])
+          backend_url_without_scheme.scheme = nil
+          backend_url_without_scheme = backend_url_without_scheme.to_s[2..-1]
+
+          context = {
+            backend_url: backend_url_without_scheme,
+            webshop_uid: url_info[:webshop],
+            webshop_url: 'http://' + Addressable::URI.parse('http://' + canonical_url).host
+          }
+
+          # For now, we use the same settings for all requests
+          settings =
+            Diversity::JsonSchemaCache[options[:configuration][:settings][:source]]
+
+          # Render the main component
+          options[:engine].render(options[:main_component], context, settings)
+        end
+      end
+      application
+    end
     
     def check_ruby_version
       if RUBY_VERSION.split('.').first.to_i != 2
-        fail 'Server will only ruby on ruby version 2. ' \
-             "You are running version #{RUBY_VERSION}.",
-             Diversity::Exception, caller unless
+        fail Diversity::Exception,
+             'Server will only ruby on ruby version 2. ' \
+             "You are running version #{RUBY_VERSION}.", caller unless
           RUBY_VERSION.split('.').first.to_i == 2
       end
     end
 
-    def get_canonical_url(request_env, app_env)
-      host = request_env['HTTP_HOST']
-      if app_env.key?(:host)
-        host =
-          case app_env[:host][:type]
-          when 'regexp'
-            host.gsub(Regexp.new(app_env[:host][:pattern]), '\1')
-          when 'string'
-            app_env[:host][:name]
-          else
-            host # Leave host as-is
-          end
-      end
-      path = env['REQUEST_PATH'].empty? ? '/' : env['REQUEST_PATH']
-      "#{host}#{path}"
-    end
-
     def get_registry(config)
-      fail 'Configuration does not specify a registry type.',
-           Diversity::Exception, caller unless
-        config.key?(:type)
+      fail Diversity::Exception,
+           'Configuration does not specify a registry type.',
+           caller unless config.key?(:type)
       begin
         registry_class =
           Diversity::Registry.const_get(config[:type])
       rescue NameError
-        fail 'Configuration specifies invalid registry type ' \
-             "#{config[:type]}.", Diversity::Exception, caller
+        fail Diversity::Exception,
+             'Configuration specifies invalid registry type ' \
+             "#{config[:type]}.", caller
       end
       registry_class.new(config[:options] || {})
-    end
-
-    def get_url_info(backend, page)
-      data = {
-        jsonrpc: '2.0',
-        method: 'Url.get',
-        params: [page, true],
-        id: 1
-      }
-      result = Unirest.post(backend[:url], parameters: data.to_json)
-      JSON.parse(result.raw_body, symbolize_names: true)[:result]
     end
     
     def load_required_gems
       begin
         gem 'sinatra'
       rescue LoadError
-        fail 'Failed to load sinatra. ' \
-             'Please install sinatra before continuing.',
-             Diversity::Exception, caller
+        fail Diversity::Exception, 'Failed to load sinatra. ' \
+             'Please install sinatra before continuing.', caller
       end
       begin
         gem 'unirest'
       rescue LoadError
-        fail 'Failed to load unirest. ' \
-             'Please install unirest before continuing.',
-             Diversity::Exception, caller
+        fail Diversity::Exception, 'Failed to load unirest. ' \
+             'Please install unirest before continuing.', caller
       end
     end
     
     def load_configuration_file(file)
-      fail "Configuration file #{file} is not readable.",
-           Diversity::Exception, caller unless
+      fail Diversity::Exception,
+          "Configuration file #{file} is not readable.", caller unless
         File.exist?(file) && File.readable?(file)
       require 'json'
       begin
         @options[:configuration] =
           JSON.parse(File.read(file), symbolize_names: true)
       rescue
-        fail "Failed to parse configuration file #{file}. " \
-             'It does not contain valid JSON.',
-             Diversity::Exception, caller
+        fail Diversity::Exception,
+             "Failed to parse configuration file #{file}. " \
+             'It does not contain valid JSON.', caller
       end
     end
     
     def parse_configuration
       config = @options[:configuration]
       @options[:backend] = config[:backend] || nil
+      @options[:environment] = config[:environment] || {}
       require_relative '../diversity.rb'
       @options[:registry] = get_registry(config[:registry] || {})
       engine_options = { registry: @options[:registry] }
@@ -140,9 +146,49 @@ module Diversity
       mc_name ||= 'tws-theme'
       mc_version ||= '*'
       main_component = @options[:registry].get_component(mc_name, mc_version)
-      fail "Cannot load main component #{mc_name} (#{mc_version})" unless
+      fail Diversity::Exception, 'Cannot load main component ' \
+           "#{mc_name} (#{mc_version})" unless
         main_component.is_a?(Diversity::Component)
     end
   end
 
+end
+
+# Helper methods used by the Diversity application
+module Sinatra
+  module DiversityHelper
+    def get_canonical_url(request_env, app_env)
+      host = request_env['HTTP_HOST']
+      puts "host before #{host}"
+      if app_env.key?(:host)
+        host =
+          case app_env[:host][:type]
+          when 'regexp'
+            regexp = Regexo.quote((.*).[a-z]+stage.textalk.se:9999$
+            regexp = Regexp.new(app_env[:host][:pattern])
+            puts "Checking #{regexp}"
+            host.gsub(regexp, '\1')
+          when 'string'
+            app_env[:host][:name]
+          else
+            host # Leave host as-is
+          end
+      end
+      puts "host after #{host}"
+      path = request_env['REQUEST_PATH'].empty? ?
+             '/' : request_env['REQUEST_PATH']
+      "#{host}#{path}"
+    end
+
+    def get_url_info(backend, page)
+      data = {
+        jsonrpc: '2.0',
+        method: 'Url.get',
+        params: [page, true],
+        id: 1
+      }
+      result = Unirest.post(backend[:url], parameters: data.to_json)
+      JSON.parse(result.raw_body, symbolize_names: true)[:result]
+    end
+  end
 end
