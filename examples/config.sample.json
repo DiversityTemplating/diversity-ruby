@@ -1,11 +1,11 @@
 {
   "backend": {
-    "url": "https://shop.textalk.se/backend/jsonrpc/v1"
+    "url": "https://lassostage.textalk.se/backend/jsonrpc/v1"
   },
   "environment": {
     "host": {
       "type": "regexp",
-      "pattern": "(.+).diversity:9999$"
+      "pattern": "(.*)\\.[a-z]+stage\\.textalk\\.se:9999$"
     }
   },
   "main_component": {

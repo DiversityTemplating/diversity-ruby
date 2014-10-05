@@ -159,22 +159,17 @@ module Sinatra
   module DiversityHelper
     def get_canonical_url(request_env, app_env)
       host = request_env['HTTP_HOST']
-      puts "host before #{host}"
       if app_env.key?(:host)
         host =
           case app_env[:host][:type]
           when 'regexp'
-            regexp = Regexo.quote((.*).[a-z]+stage.textalk.se:9999$
-            regexp = Regexp.new(app_env[:host][:pattern])
-            puts "Checking #{regexp}"
-            host.gsub(regexp, '\1')
+            host.gsub(Regexp.new(app_env[:host][:pattern]), '\1')
           when 'string'
             app_env[:host][:name]
           else
             host # Leave host as-is
           end
       end
-      puts "host after #{host}"
       path = request_env['REQUEST_PATH'].empty? ?
              '/' : request_env['REQUEST_PATH']
       "#{host}#{path}"
