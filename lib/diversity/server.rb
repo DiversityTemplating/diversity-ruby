@@ -145,10 +145,11 @@ module Diversity
       end
       mc_name ||= 'tws-theme'
       mc_version ||= '*'
-      main_component = @options[:registry].get_component(mc_name, mc_version)
+      @options[:main_component] =
+        @options[:registry].get_component(mc_name, mc_version)
       fail Diversity::Exception, 'Cannot load main component ' \
            "#{mc_name} (#{mc_version})" unless
-        main_component.is_a?(Diversity::Component)
+        @options[:main_component].is_a?(Diversity::Component)
     end
   end
 
