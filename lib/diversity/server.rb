@@ -1,4 +1,3 @@
-require 'pp'
 require_relative 'exception.rb'
 
 module Diversity
@@ -23,16 +22,18 @@ module Diversity
     private
 
     def build_application
-      options = @options # To use options inside class_eval
+      opts = @options # To use @options inside class_eval
       require 'sinatra/base'
       application = Class.new(Sinatra::Base)
       application.class_eval do
+        @options = opts
+        def options; self.class.instance_variable_get(:@options); end
         helpers Sinatra::DiversityHelper
         # If we are running a local registry, make sure we expose files from
         # the registry in a consistent way
-        if options[:registry].is_a?(Diversity::Registry::Local)
+        if opts[:registry].is_a?(Diversity::Registry::Local)
           get '/components/*' do
-            path = File.join(options[:registry].base_path, params['splat'].first)
+            path = File.join(opts[:registry].base_path, params['splat'].first)
             if File.exist?(path)
               send_file(path)
             else
@@ -41,14 +42,14 @@ module Diversity
           end
         end
         get '*' do
-          canonical_url = get_canonical_url(request.env, options[:environment])
+          canonical_url = get_canonical_url(request)
 
           # Work around bug in API that incorrectly forces us to specify protocol
-          url_info = get_url_info(options[:backend], 'http://' + canonical_url)
-          #url_info = get_url_info(options[:backend], canonical_url)
+          url_info = call_api('Url.get', ['http://' + canonical_url, true])
+          #url_info = get_url_info(opts[:backend], canonical_url)
 
           backend_url_without_scheme =
-            Addressable::URI.parse(options[:backend][:url])
+            Addressable::URI.parse(opts[:backend][:url])
           backend_url_without_scheme.scheme = nil
           backend_url_without_scheme = backend_url_without_scheme.to_s[2..-1]
 
@@ -58,12 +59,13 @@ module Diversity
             webshop_url: 'http://' + Addressable::URI.parse('http://' + canonical_url).host
           }
 
-          # For now, we use the same settings for all requests
-          settings =
-            Diversity::JsonSchemaCache[options[:configuration][:settings][:source]]
+          main_component, settings =
+            get_main_component_with_settings(request, {webshop: url_info[:webshop]})
+
+          # settings = Diversity::JsonSchemaCache[opts[:configuration][:settings][:source]]
 
           # Render the main component
-          options[:engine].render(options[:main_component], context, settings)
+          opts[:engine].render(main_component, context, settings)
         end
       end
       application
@@ -137,19 +139,23 @@ module Diversity
       @options[:engine] = Diversity::Engine.new(engine_options)
       # Check if the configuration contains information about what to use
       # as a "main component"
+      @options[:main_component] = {}
       if config.key?(:main_component) && config[:main_component].is_a?(Hash)
-        mc_name =    config[:main_component][:name].to_s if
-                       config[:main_component].key?(:name)
-        mc_version = config[:main_component][:version].to_s if
-                       config[:main_component].key?(:version)
+        @options[:main_component][:name] =
+          config[:main_component][:name] || 'tws-theme'
+        @options[:main_component][:version] =
+          config[:main_component][:version] || '*'
+      else
+        @options[:main_component][:name] = 'tws-theme'
+        @options[:main_component][:version] = '*'
       end
-      mc_name ||= 'tws-theme'
-      mc_version ||= '*'
-      @options[:main_component] =
-        @options[:registry].get_component(mc_name, mc_version)
-      fail Diversity::Exception, 'Cannot load main component ' \
-           "#{mc_name} (#{mc_version})" unless
-        @options[:main_component].is_a?(Diversity::Component)
+      if config.key?(:settings) && config[:settings].is_a?(Hash) &&
+         config[:settings].key?(:source)
+        @options[:settings] =
+          JSON.parse(File.read(config[:settings][:source]))
+      else
+        @options[:settings] = {}
+      end
     end
   end
 
@@ -158,33 +164,58 @@ end
 # Helper methods used by the Diversity application
 module Sinatra
   module DiversityHelper
-    def get_canonical_url(request_env, app_env)
-      host = request_env['HTTP_HOST']
-      if app_env.key?(:host)
+    def call_api(meth, params, context = {})
+      payload = {
+        jsonrpc: '2.0',
+        method: meth,
+        params: params,
+        id: 1
+      }
+      backend_url = Addressable::URI.parse(options[:backend][:url])
+      backend_context = context.merge(backend_url.query_values || {})
+      backend_url.query_values = backend_context unless
+        backend_context.empty?
+      result = Unirest.post(backend_url.to_s, parameters: payload.to_json)
+      JSON.parse(result.raw_body, symbolize_names: true)[:result]
+    end
+    
+    def get_canonical_url(request)
+      host = request.env['HTTP_HOST']
+      if options[:environment].key?(:host)
         host =
-          case app_env[:host][:type]
+          case options[:environment][:host][:type]
           when 'regexp'
-            host.gsub(Regexp.new(app_env[:host][:pattern]), '\1')
+            host.gsub(Regexp.new(options[:environment][:host][:pattern]), '\1')
           when 'string'
-            app_env[:host][:name]
+            options[:environment][:host][:name]
           else
             host # Leave host as-is
           end
       end
-      path = request_env['REQUEST_PATH'].empty? ?
-             '/' : request_env['REQUEST_PATH']
+      path = request.env['REQUEST_PATH'].empty? ?
+             '/' : request.env['REQUEST_PATH']
       "#{host}#{path}"
     end
 
-    def get_url_info(backend, page)
-      data = {
-        jsonrpc: '2.0',
-        method: 'Url.get',
-        params: [page, true],
-        id: 1
-      }
-      result = Unirest.post(backend[:url], parameters: data.to_json)
-      JSON.parse(result.raw_body, symbolize_names: true)[:result]
+    def get_main_component_with_settings(request, context)
+      if request.cookies.key?('tid')
+        # Theme information available from request
+        component_id = request.cookies['tid'].to_i
+        component_info = call_api('Theme.get', [component_id, true], context)
+        component_name = component_info[:params][:layout] || 'tws-theme'
+        component_version = component_info[:params][:version] || '*'
+        component_settings = component_info[:params][:settings] || {}
+      else
+        #component_name = options[:main_component][:name]
+        #component_version = options[:main_component][:version]
+        #component_settings = options[:settings]
+      end
+      component =
+        options[:registry].get_component(component_name, component_version)
+      fail Diversity::Exception, 'Cannot load main component ' \
+           "#{component_name} (#{component_version})" unless
+        component.is_a?(Diversity::Component)
+      [component, Diversity::JsonObject[component_settings]]
     end
   end
 end
