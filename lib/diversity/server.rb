@@ -206,9 +206,9 @@ module Sinatra
         component_version = component_info[:params][:version] || '*'
         component_settings = component_info[:params][:settings] || {}
       else
-        #component_name = options[:main_component][:name]
-        #component_version = options[:main_component][:version]
-        #component_settings = options[:settings]
+        component_name = options[:main_component][:name]
+        component_version = options[:main_component][:version]
+        component_settings = options[:settings]
       end
       component =
         options[:registry].get_component(component_name, component_version)
