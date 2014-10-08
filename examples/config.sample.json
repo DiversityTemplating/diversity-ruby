@@ -8,6 +8,10 @@
       "pattern": "(.+).diversity:9999$"
     }
   },
+  "logging": {
+    "access": "logs/access.log",
+    "error": "logs/error.log"
+  },
   "main_component": {
     "name": "tws-theme",
     "version": "*"

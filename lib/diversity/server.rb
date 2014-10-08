@@ -1,3 +1,4 @@
+require 'logger'
 require_relative 'exception.rb'
 
 module Diversity
@@ -23,12 +24,22 @@ module Diversity
 
     def build_application
       opts = @options # To use @options inside class_eval
+      if opts.key?(:logging)
+        access_logger = opts[:logging].key?(:access) ?
+                        opts[:logging][:access] : nil
+        error_logger  = opts[:logging].key?(:error) ?
+                        opts[:logging][:error] : nil
+      end
       require 'sinatra/base'
       application = Class.new(Sinatra::Base)
       application.class_eval do
         @options = opts
         def options; self.class.instance_variable_get(:@options); end
         helpers Sinatra::DiversityHelper
+        # Set up access logging if requested
+        configure { use ::Rack::CommonLogger, access_logger } if access_logger
+        # Set up error logging if requested
+        before { env["rack.errors"] =  error_logger } if error_logger
         # If we are running a local registry, make sure we expose files from
         # the registry in a consistent way
         if opts[:registry].is_a?(Diversity::Registry::Local)
@@ -155,6 +166,19 @@ module Diversity
           JSON.parse(File.read(config[:settings][:source]))
       else
         @options[:settings] = {}
+      end
+      if config.key?(:logging)
+        ::Logger.class_eval { alias :write :'<<' }
+        @options[:logging] = {}
+        if config[:logging].key?(:access)
+          @options[:logging][:access] =
+            ::Logger.new(::File.expand_path(config[:logging][:access]))
+        end
+        if config[:logging].key?(:error)
+          @options[:logging][:error] =
+            ::File.new(::File.expand_path(config[:logging][:error]), 'a+')
+          @options[:logging][:error].sync = true
+        end
       end
     end
   end
