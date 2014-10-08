@@ -14,11 +14,11 @@ module Diversity
         exit 1
       end
     end
-    
+
     def run
       build_application.run!(@options[:configuration][:server] || {})
     end
-    
+
     private
 
     def build_application
@@ -55,12 +55,12 @@ module Diversity
 
           context = {
             backend_url: backend_url_without_scheme,
-            webshop_uid: url_info[:webshop],
+            webshop_uid: url_info['webshop'],
             webshop_url: 'http://' + Addressable::URI.parse('http://' + canonical_url).host
           }
 
           main_component, settings =
-            get_main_component_with_settings(request, {webshop: url_info[:webshop]})
+            get_main_component_with_settings(request, {webshop: url_info['webshop']})
 
           # settings = Diversity::JsonSchemaCache[opts[:configuration][:settings][:source]]
 
@@ -70,7 +70,7 @@ module Diversity
       end
       application
     end
-    
+
     def check_ruby_version
       if RUBY_VERSION.split('.').first.to_i != 2
         fail Diversity::Exception,
@@ -94,7 +94,7 @@ module Diversity
       end
       registry_class.new(config[:options] || {})
     end
-    
+
     def load_required_gems
       begin
         gem 'sinatra'
@@ -109,7 +109,7 @@ module Diversity
              'Please install unirest before continuing.', caller
       end
     end
-    
+
     def load_configuration_file(file)
       fail Diversity::Exception,
           "Configuration file #{file} is not readable.", caller unless
@@ -124,7 +124,7 @@ module Diversity
              'It does not contain valid JSON.', caller
       end
     end
-    
+
     def parse_configuration
       config = @options[:configuration]
       @options[:backend] = config[:backend] || nil
@@ -176,9 +176,9 @@ module Sinatra
       backend_url.query_values = backend_context unless
         backend_context.empty?
       result = Unirest.post(backend_url.to_s, parameters: payload.to_json)
-      JSON.parse(result.raw_body, symbolize_names: true)[:result]
+      JSON.parse(result.raw_body)['result'])
     end
-    
+
     def get_canonical_url(request)
       host = request.env['HTTP_HOST']
       if options[:environment].key?(:host)
@@ -201,10 +201,11 @@ module Sinatra
       if request.cookies.key?('tid')
         # Theme information available from request
         component_id = request.cookies['tid'].to_i
-        component_info = call_api('Theme.get', [component_id, true], context)
-        component_name = component_info[:params][:layout] || 'tws-theme'
-        component_version = component_info[:params][:version] || '*'
-        component_settings = component_info[:params][:settings] || {}
+        component_info =
+          call_api('Theme.get', [component_id, true], context)
+        component_name = component_info['params']['layout'] || 'tws-theme'
+        component_version = component_info['params']['version'] || '*'
+        component_settings = component_info['params']['settings'] || {}
       else
         component_name = options[:main_component][:name]
         component_version = options[:main_component][:version]
