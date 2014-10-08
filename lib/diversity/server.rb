@@ -176,7 +176,7 @@ module Sinatra
       backend_url.query_values = backend_context unless
         backend_context.empty?
       result = Unirest.post(backend_url.to_s, parameters: payload.to_json)
-      JSON.parse(result.raw_body)['result'])
+      JSON.parse(result.raw_body['result'])
     end
 
     def get_canonical_url(request)
