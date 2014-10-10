@@ -54,7 +54,6 @@ module Diversity
         end
         get '*' do
           canonical_url = get_canonical_url(request)
-
           # Work around bug in API that incorrectly forces us to specify protocol
           url_info = call_api('Url.get', ['http://' + canonical_url, true])
           #url_info = get_url_info(opts[:backend], canonical_url)
@@ -200,7 +199,8 @@ module Sinatra
       backend_url.query_values = backend_context unless
         backend_context.empty?
       result = Unirest.post(backend_url.to_s, parameters: payload.to_json)
-      JSON.parse(result.raw_body['result'])
+      JSON.parse(result.raw_body)['result']
+
     end
 
     def get_canonical_url(request)
