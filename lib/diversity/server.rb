@@ -17,6 +17,10 @@ module Diversity
     end
 
     def run
+      @options[:configuration][:server] =
+        { dump_errors: false, raise_errors: false, show_exceptions: false }.merge(
+          @options[:configuration][:server]
+      )
       build_application.run!(@options[:configuration][:server] || {})
     end
 
@@ -24,22 +28,28 @@ module Diversity
 
     def build_application
       opts = @options # To use @options inside class_eval
-      if opts.key?(:logging)
-        access_logger = opts[:logging].key?(:access) ?
-                        opts[:logging][:access] : nil
-        error_logger  = opts[:logging].key?(:error) ?
-                        opts[:logging][:error] : nil
-      end
       require 'sinatra/base'
       application = Class.new(Sinatra::Base)
       application.class_eval do
         @options = opts
         def options; self.class.instance_variable_get(:@options); end
         helpers Sinatra::DiversityHelper
-        # Set up access logging if requested
-        configure { use ::Rack::CommonLogger, access_logger } if access_logger
-        # Set up error logging if requested
-        before { env["rack.errors"] =  error_logger } if error_logger
+        # Set up access logging
+        configure do
+          use ::Rack::CommonLogger, opts[:logging][:access]
+        end
+        # Set up error logging
+        error 500 do |err|
+          opts[:logging][:error] <<
+            (Time.now.strftime('%F %T ') <<
+             "#{err.class} - #{err.message}\n")
+          err.backtrace.each do |step|
+            opts[:logging][:error] << "\t#{step}\n"
+          end
+          response.headers['Content-Type'] = 'text/plain'
+          # halt 'Internal server error'
+          halt err.message
+        end
         # If we are running a local registry, make sure we expose files from
         # the registry in a consistent way
         if opts[:registry].is_a?(Diversity::Registry::Local)
@@ -137,6 +147,26 @@ module Diversity
 
     def parse_configuration
       config = @options[:configuration]
+      @options[:logging] = {}
+      ::Logger.class_eval { alias :write :'<<' }
+      if config.key?(:logging)
+        access_log = config[:logging].fetch(:access, $stdout)
+        access_log = File.expand_path(access_log) unless
+          access_log == $stdout
+        debug_log = config[:logging].fetch(:debug, nil)
+        debug_log = File.expand_path(debug_log) unless debug_log.nil?
+        error_log = config[:logging].fetch(:error, $stderr)
+        error_log = File.expand_path(error_log) unless
+          error_log == $stdout
+      else
+        access_log = $stdout
+        debug_log = nil
+        error_log = $stderr
+      end
+      @options[:logging][:access] = Logger.new(access_log)
+      @options[:logging][:debug] = Logger.new(debug_log) unless
+        debug_log.nil?
+      @options[:logging][:error] = Logger.new(error_log)
       @options[:backend] = config[:backend] || nil
       @options[:environment] = config[:environment] || {}
       require_relative '../diversity.rb'
@@ -145,6 +175,9 @@ module Diversity
       # If we are using a local repository, expose component files
       if @options[:registry].is_a?(Diversity::Registry::Local)
         engine_options[:public_path] = '/components'
+      end
+      if @options[:logging][:debug]
+        engine_options[:debug_logger] = @options[:logging][:debug]
       end
       @options[:engine] = Diversity::Engine.new(engine_options)
       # Check if the configuration contains information about what to use
@@ -165,19 +198,6 @@ module Diversity
           JSON.parse(File.read(config[:settings][:source]))
       else
         @options[:settings] = {}
-      end
-      if config.key?(:logging)
-        ::Logger.class_eval { alias :write :'<<' }
-        @options[:logging] = {}
-        if config[:logging].key?(:access)
-          @options[:logging][:access] =
-            ::Logger.new(::File.expand_path(config[:logging][:access]))
-        end
-        if config[:logging].key?(:error)
-          @options[:logging][:error] =
-            ::File.new(::File.expand_path(config[:logging][:error]), 'a+')
-          @options[:logging][:error].sync = true
-        end
       end
     end
   end
