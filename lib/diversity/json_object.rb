@@ -124,8 +124,16 @@ module Diversity
 
     def self.traverse(data, path = [], &block)
       block.call([path, data])
-      data.each_pair do |key, value|
-        traverse(value, (path.dup << key), &block) if value.is_a?(Hash)
+      if data.is_a?(Array)
+        data.each_with_index do |value, idx|
+          traverse(value, (path.dup << idx), &block) if
+            value.is_a?(Array) || value.is_a?(Hash)
+        end
+      elsif data.is_a?(Hash)
+        data.each_pair do |key, value|
+          traverse(value, (path.dup << key), &block) if
+            value.is_a?(Array) || value.is_a?(Hash)
+        end
       end
     end
 
