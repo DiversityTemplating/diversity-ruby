@@ -110,7 +110,7 @@ module Diversity
       all_templatedata.each_pair do |hkey, hvalue|
         new_key = (hkey.dup) << 'componentHTML'
         node = [new_key, hvalue]
-        current_templatedata = current_templatedata.keep_merge(node_to_hash(node))
+        current_templatedata = self.class.deep_merge(current_templatedata, node_to_hash(node))
       end
 
       # Merge current_templatedata with the current settings
@@ -118,8 +118,9 @@ module Diversity
       if key.empty?
         settings_hash[:settings] = current_templatedata
       else
-        settings_hash[:settings] = json_settings.data.keep_merge(current_templatedata)
+        settings_hash[:settings] = self.class.deep_merge(json_settings.data, current_templatedata)
       end
+
       # According to David we need the settings as JSON as well
       settings_hash[:settingsJSON] =
         settings_hash[:settings].to_json.gsub(/<\/script>/i, '<\\/script>')
@@ -133,6 +134,13 @@ module Diversity
       templates = component.templates.map do |template|
         self.class.expand_relative_paths(component.base_path, template)
       end
+
+      debug(
+        "Rendering templates for #{key.inspect} using " \
+        "component #{component.name} #{component.version} " \
+        "with context\n#{context.inspect}\nand settings\n" \
+        "#{settings_hash.inspect}\n\n"
+      )
 
       all_templates = []
       templates.each do |template|
@@ -160,6 +168,10 @@ module Diversity
     # Deletes the rendering context for the current engine
     def delete_settings
       self.class.settings.delete(self)
+    end
+
+    def debug(msg)
+      @options[:debug_logger] << msg if @options[:debug_logger]
     end
 
     def public_path(component)
@@ -205,7 +217,24 @@ module Diversity
         available_settings.validate(requested_settings)
       rescue
         # failed to validate settings. now what?
-        puts 'Oops, failed to validate settings'
+        debug('Oops, failed to validate settings')
+      end
+    end
+
+    def self.deep_merge(obj1, obj2)
+      if obj1.is_a?(Array) && obj2.is_a?(Array)
+        obj1.concat(obj2)
+      elsif obj1.is_a?(Hash) && obj2.is_a?(Hash)
+        obj1.merge(obj2) do |_, val1, val2|
+          if (val1.is_a?(Array) && val2.is_a?(Array)) ||
+             (val1.is_a?(Hash) && val2.is_a?(Hash))
+            deep_merge(val1, val2)
+          else
+            val2
+          end
+        end
+      else
+        obj2
       end
     end
 
@@ -218,13 +247,25 @@ module Diversity
       subcomponents = []
       component_keys = component.settings.select do |node|
         last = node.last
+        !last.is_a?(Array) &&
         last['type'] == 'object' && last['format'] == 'diversity'
       end
       return [] if component_keys.empty?
       component_keys.map!(&:first)
       new_keys = []
       component_keys.each do |key|
-        new_keys << key.reject { |elem| elem == 'properties' || elem == 'items' }
+        key.pop if key.last == 'items'
+        key.reject! { |e| e == 'properties' }
+        if (idx = key.find_index('items'))
+          before = key[0...idx]
+          item_settings = self.class.extract_setting(before, settings)
+          next if item_settings.nil? || item_settings.empty?
+          0.upto(item_settings.length - 1) do |n|
+            new_keys << (before.dup << n).concat(key[idx + 1..-1])
+          end
+        else
+          new_keys << key
+        end
       end
       # Sort by key length first and then by each key
       klass = self.class
@@ -269,7 +310,7 @@ module Diversity
       return nil unless template_data # No need to render empty templates
       # Add data from API
       rcontext = component.resolve_context(context[:backend_url], context)
-      rcontext = settings.keep_merge({context: rcontext})
+      rcontext = self.class.deep_merge(settings, {context: rcontext})
       # Add some tasty Mustache lambdas
       rcontext['currency'] =
         lambda do |text, render|
@@ -311,17 +352,30 @@ module Diversity
     def node_to_hash(node)
       key, value = node
       fail 'Empty key not allowed' if key.empty?
-      current_hash = {}
-      outermost_hash = current_hash
+      current_container = {}
+      outermost_container = current_container
       key.each_with_index do |elem, index|
         if index < key.length - 1
-          current_hash[elem] = {}
-          current_hash = current_hash[elem]
+          if key[index].is_a?(Fixnum)
+            if key[index + 1].is_a?(Fixnum)
+              current_container << []
+            else
+              current_container << {}
+            end
+            current_container = current_container.last
+          else
+            if key[index + 1].is_a?(Fixnum)
+              current_container[elem] = []
+            else
+              current_container[elem] = {}
+            end
+            current_container = current_container[elem]
+          end
         else
-          current_hash[elem] = value
+          current_container[elem] = value
         end
       end
-      outermost_hash
+      outermost_container
     end
   end
 end
