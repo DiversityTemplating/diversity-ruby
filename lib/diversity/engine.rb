@@ -339,7 +339,13 @@ module Diversity
       len_cmp = another_obj.length  <=> one_obj.length
       return len_cmp if len_cmp.nonzero?
       one_obj.each_with_index do |key, index|
-        key_cmp = another_obj[index] <=> key
+        key2 = another_obj[index]
+        next if key.class != key2.class
+        if key.is_a?(Fixnum) && key2.is_a?(Fixnum)
+          key_cmp = key <=> key2
+        else
+          key_cmp = key2 <=> key
+        end
         return key_cmp if key_cmp.nonzero?
       end
       0
