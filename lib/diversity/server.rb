@@ -1,3 +1,5 @@
+require 'digest/sha2'
+require 'cache'
 require_relative 'exception.rb'
 require_relative 'server/configuration.rb'
 
@@ -121,7 +123,14 @@ end
 # Helper methods used by the Diversity application
 module Sinatra
   module DiversityHelper
-    def call_api(meth, params, context = {})
+    def call_api(meth, params, context = {}, purge_cache = false)
+      # Handle caching
+      cache_key = Digest::SHA2.hexdigest(
+        "#{meth.inspect}#{params.inspect}#{context.inspect}"
+      )
+      if !purge_cache && ApiCache.cached?(cache_key)
+        return ApiCache[cache_key]
+      end
       payload = {
         jsonrpc: '2.0',
         method: meth,
@@ -133,8 +142,8 @@ module Sinatra
       backend_url.query_values = backend_context unless
         backend_context.empty?
       result = Unirest.post(backend_url.to_s, parameters: payload.to_json)
-      JSON.parse(result.raw_body)['result']
-
+      ApiCache[cache_key] = JSON.parse(result.raw_body)['result']
+      ApiCache[cache_key]
     end
 
     def get_canonical_url(request)
@@ -175,6 +184,40 @@ module Sinatra
            "#{component_name} (#{component_version})" unless
         component.is_a?(Diversity::Component)
       [component, Diversity::JsonObject[component_settings]]
+    end
+
+    # Class that handles caching of API calls
+    class ApiCache
+      # Returns an item from the cache
+      #
+      # @param [String] key
+      # @return [Object|nil]
+      def self.[](key); cache[key]; end
+
+      # Sets an item in the cache
+      #
+      # @param [String] key
+      # @param [String] value
+      # @return [Object]
+      def self.[]=(key, value); cache[key] = value; end
+
+      # Returns whether a key exists in the cache
+      #
+      # @param [String] key
+      # @return [true|false]
+      def self.cached?(key); cache.cached?(key); end
+
+      # Purges the cache from a single key (or all keys)
+      #
+      # @param [String|nil] key
+      # @return [Object]
+      def self.purge(key = nil)
+        key.nil? ? cache.invalidate_all : cache.invalidate(key)
+      end
+
+      def self.cache; @cache ||= Cache.new; end
+
+      private_class_method :cache
     end
   end
 end
