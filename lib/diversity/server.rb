@@ -141,7 +141,13 @@ module Sinatra
       backend_context = context.merge(backend_url.query_values || {})
       backend_url.query_values = backend_context unless
         backend_context.empty?
-      result = Unirest.post(backend_url.to_s, parameters: payload.to_json)
+      begin
+        result = Unirest.post(backend_url.to_s, parameters: payload.to_json)
+      rescue Exception
+        fail Diversity::Exception,
+            "Failed to call API at #{backend_url}",
+            caller
+      end
       ApiCache[cache_key] = JSON.parse(result.raw_body)['result']
       ApiCache[cache_key]
     end
