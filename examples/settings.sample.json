@@ -1,0 +1,192 @@
+{
+  "custom_css": {
+    "rules": "@import url(http://fonts.googleapis.com/css?family=Lobster);\n\nheader {\n   font-family: 'Lobster', cursive;\n}\n\nheader h1 {\n  font-size: 62px;\n}\nh1,h2,h3,h4 {\ntext-shadow: 1px 1px 1px #FFFFFF;\n  font-family: 'Lobster', cursive;\n}\n\nfooter {\n text-align: center;\n}\n\n.yellow {\ncolor: yellow\n}\n\ntws-articlegroup-menu > ul {\n   list-style-type: none;\n}\n\ntws-articlegroup-menu > ul > li {\n   list-style-type: none;\n}\n\ntws-articlegroup-menu > ul > li > ul {\n   list-style-type: none;\n}\n\ntws-articlegroup-menu > ul > li > ul > li {\n   list-style-type: none;\n}\n\n\nhtml, body {\n  padding: 0;\n  margin: 0;\n  height: 100%;\n  background: #f2f2f2;\n  color: #333;\n  font-family: 'Segoe UI', 'Helvetica neue', Arial;\ntext-shadow: 1px 1px 1px #FFFFFF;\n}\n\n.tws-theme > header {\n  padding: 15px;\n  border-bottom: 1px solid #cecece;\n}\n\n.tws-theme .left-pane  ul {\npadding-left: 15px;\n}\n\n.tws-theme {\n}\n\n.tws-theme  a {\n}\n\n.tws-theme > div > .left-pane {\n  border-right: 1px solid #cecece;\n}\n\n.tws-theme > div > .content {\n}\n\n.tws-theme > div > .right-pane {\n  border-left: 1px solid #cecece;\n}\n\n.left-pane {\n  padding: 5px;\n\n}\n\n\n/*\n  FIXME: We need to decide on how we will handle height in the layout.\n  This is extra problematic since we optimally would like footer and header to grow with\n  whatever you put into them and at the same time take up full page height at a minimum.\n  And like side panes to have same height as the columns etc.\n*/\n.tws-theme > div > .content {\n  min-height: 800px;\n}",
+    "links": []
+  },
+  "layout": {
+    "top": [
+      {
+        "component": "tws-custom-html",
+        "settings": {
+          "custom_html": "<h1>One shop to rule them all</h1>"
+        }
+      },
+      {
+        "component": "tws-top-menu",
+        "settings": {
+            "megaMenu": true,
+            "menuItems": [
+            {
+              "articlegroupId": null,
+              "createMenusForChildren": true,
+              "depth": 3
+            },
+            {
+              "link": "tws://link",
+              "name": {
+                "sv": "En länk"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "component": "tws-article-search",
+        "settings": {
+          "limit": 12,
+          "placeholder": {
+            "sv": "Sök",
+            "en": "Search",
+            "hr": "Uhmmm what was it again?"
+          }
+        }
+      }
+    ],
+    "footer": [
+      {
+        "component": "tws-custom-html",
+        "settings": {
+          "custom_html": "<em><small>Please don't read me.</small></em>"
+        }
+      }
+    ],
+    "left_pane": [
+      {
+        "component": "tws-image",
+        "settings": {
+          "responsive": true,
+          "src": "https://33.media.tumblr.com/4644d763bc28c6503fdae28134090638/tumblr_n4z6gz04vQ1qdlh1io1_r1_400.gif"
+        }
+      },
+      {
+        "component": "tws-custom-html",
+        "settings": {
+          "custom_html": "<a href=\"/\" ng-click=\"navigate($event)\">Home</a>"
+        }
+      },
+      {
+        "component": "tws-articlegroup-menu",
+        "settings": {
+          "root": true
+        }
+      }
+    ],
+    "right_pane": [
+       {
+         "component": "tws-image",
+         "settings": {
+           "src": "http://38.media.tumblr.com/f36373be357a72d3318f910d35f603e8/tumblr_n5zlnmUi8Q1r6n45qo1_400.gif",
+           "responsive": true
+         }
+      },      
+      {
+        "component": "tws-articlegroup-menu",
+        "settings": {
+          "root": false
+        }
+      }
+    ],
+    "pages": {
+      "ArticleSearchResults": {
+        "hide_left_pane": false,
+        "hide_right_pane": true,
+        "left_pane": [],
+        "right_pane": [],
+        "routing": {
+          "url": "/search/:term"
+        },
+        "middle": {
+          "component": "tws-article-search-page",
+          "settings": {}
+        }
+      },
+      "StartPage": {
+        "hide_left_pane": false,
+        "hide_right_pane": true,
+        "middle": [
+          {
+            "component": "tws-custom-html",
+            "settings": {
+              "custom_html": "<h1>Please buy something!!!.</h1>\n<script type=\"text/javascript\">\nconsole.log('yes! ********************************************')\n</script>"
+            }
+          },
+          {
+            "component": "tws-cart",
+            "settings": {
+              "editable": false,
+              "zebra": false
+            }
+          }
+        ],
+        "left_pane": [
+          {
+            "component": "tws-articlegroup-menu",
+            "settings": {
+              "root": true
+            }
+          }
+        ],
+        "right_pane": [
+          {
+            "component": "tws-custom-html",
+            "settings": {
+              "custom_html": "<p>foobar</p>"
+            }
+          }
+        ]
+      },
+      "Article": {
+        "hide_left_pane": false,
+        "hide_right_pane": true,
+        "middle": [
+          {
+            "component": "tws-custom-html",
+            "settings": {
+              "custom_html": "<h1>Article page</h1>"
+            }
+          },
+          {
+            "component": "tws-article",
+            "settings": {}
+          }
+        ],
+        "left_pane": [],
+        "right_pane": []
+      },
+      "Articlegroup": {
+        "hide_left_pane": false,
+        "hide_right_pane": false,
+        "middle": [
+          {
+            "component": "tws-custom-html",
+            "settings": {
+              "custom_html": "<h1 ng-click=\"navigate('/')\">Article Group Page</h1>"
+            }
+          },
+          {
+            "component": "tws-article-list",
+            "settings": {}
+          },
+          {
+            "component": "tws-articlegroup-menu",
+            "settings": {
+              "root": false
+            }
+          }
+        ],
+        "left_pane": [],
+        "right_pane": [
+        ]
+      },
+      "Checkout": {
+        "hide_left_pane": "false",
+        "hide_right_pane": "false"
+      }
+    }
+  },
+  "checkout_url": "/checkout",
+  "custom_js": {
+    "srcs": []
+  },
+  "fluid": false
+}

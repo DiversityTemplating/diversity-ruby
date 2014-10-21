@@ -9,85 +9,56 @@ require 'rubygems/requirement'
 require 'rubygems/version'
 require_relative 'common'
 require_relative 'exception'
+require_relative 'json_schema_cache'
+
+# https://raw.githubusercontent.com/DiversityTemplating/Diversity/master/validation/diversity.schema.json
 
 module Diversity
   # Class representing an external component
   class Component
     include Common
 
-    # @!attribute [r] name
-    #   @return [String] Component name
-    # @!attribute [r] version
-    #   @return [Gem::Version] Component version
-    # @!attribute [r] templates
-    #   @return [Rake::FileList] Component template list
-    # @!attribute [r] styles
-    #   @return [Rake::FileList] Component styles list
-    # @!attribute [r] scripts
-    #   @return [Rake::FileList] Component script list
-    # @!attribute [r] dependencies
-    #   @return [Hash] Component dependencies
-    # @!attribute [r] type
-    #   @return [String|nil] Component type
-    # @!attribute [r] pagetype
-    #   @return [String|nil] Component page type
-    # @!attribute [r] context
-    #   @return [Hash] Component context
-    # @!attribute [r] options
-    #   @return [Hash] Component options
-    # @!attribute [r] options_src
-    #   @return [String|nil] Component options source
-    # @!attribute [r] angular
-    #   @return [String|nil] Angular module name
-    # @!attribute [r] partials
-    #   @return [Hash] Component partials
-    # @!attribute [r] themes
-    #   @return [Rake::FileList] Component theme list
-    # @!attribute [r] fields
-    #   @return [Hash] Component fields
-    # @!attribute [r] title
-    #   @return [String|nil] Component title
-    # @!attribute [r] description
-    #   @return [String|nil] Component description
-    # @!attribute [r] thumbnail
-    #   @return [String|nil] Component thumbnail
-    # @!attribute [r] price
-    #   @return [Hash|nil] Component price
-    # @!attribute [r] assets
-    #   @return [Rake::FileList] Component assets
-    # @!attribute [r] src
-    #   @return [String] Component source
-    # @!attribute [r] i18n
-    #   @return [Hash] Component translation files
-    # @!attribute [r] base_path
-    #   @return [String] Component base path
-    # @!attribute [r] checksum
-    #   @return [String] Component checksum (SHA1)
-    attr_reader :name, :version, :templates, :styles, :scripts, :dependencies, :type, :pagetype,
-                :context, :options, :options_src, :angular, :partials, :themes, :fields, :title,
-                :thumbnail, :price, :assets, :src, :i18n, :base_path, :checksum
+    MASTER_COMPONENT_SCHEMA =
+      'https://raw.githubusercontent.com/DiversityTemplating/' \
+      'Diversity/master/validation/diversity.schema.json'
+
+    attr_reader :checksum, :raw
+
+    # Cmponent configuration
+    Configuration =
+      Struct.new(
+        :name, :version, :templates, :styles, :scripts, :dependencies,
+        :type, :pagetype, :context, :settings, :angular,
+        :partials, :themes, :fields, :title, :thumbnail, :price, :assets,
+        :src, :i18n, :base_path, :description
+      )
+
+    Configuration.members.each do |property_name|
+      define_method(property_name) { @configuration[property_name] }
+    end
 
     # Creates a new component from a configuration resource (file or URL)
     #
-    # @param [String] config configuration resource
+    # @param [String] resource configuration resource
     # @raise [Diversity::Exception] if the resource cannot be loaded
-    # @return [BS::Component::Component]
-    def initialize(config, skip_validation = false)
+    # @return [Diversity::Component]
+    def initialize(resource, skip_validation = false)
       fail Diversity::Exception,
-           'Failed to load config file',
-           caller unless (data = safe_load(config))
-      if remote?(config)
-        @src = Addressable::URI.parse(config).to_s
-        @base_path = uri_base_path(@src)
+           "Failed to load component configuration from #{resource}",
+           caller unless (data = safe_load(resource))
+      @configuration = Configuration.new
+      if remote?(resource)
+        @configuration.src = Addressable::URI.parse(resource).to_s
+        @configuration.base_path = uri_base_path(@configuration.src)
       else
-        @src = File.expand_path(config)
-        @base_path = File.dirname(@src)
+        @configuration.src = File.expand_path(resource)
+        @configuration.base_path = File.dirname(@configuration.src)
       end
-      validate_config(data) unless skip_validation
-      hsh = parse_config(data)
-      @raw = hsh
+      schema = JsonSchemaCache[MASTER_COMPONENT_SCHEMA]
+      schema.validate(data) unless skip_validation
+      @raw = parse_config(data)
       @checksum = Digest::SHA1.hexdigest(dump)
-      populate(hsh)
+      populate(@raw)
     end
 
     # Returns a JSON dump of the component configuration
@@ -106,6 +77,10 @@ module Diversity
       client = JsonRpcClient.new(backend_url.to_s, asynchronous_calls: false)
       resolved_context = {}
       context.each_pair do |key, settings|
+        unless settings.is_a?(Hash)
+          resolved_context[key] = settings
+          next
+        end
         # Round 1 - Resolve context
         new_settings = settings.dup
         new_settings['params'].map! do |param|
@@ -133,6 +108,35 @@ module Diversity
       resolved_context
     end
 
+    def <(other_component)
+      (self<=>(other_component)) == -1
+    end
+
+    def <=(other_component)
+      (self<=>(other_component)) != 1
+    end
+
+    def >(other_component)
+      (self<=>(other_component)) == 1
+    end
+
+    def >=(other_component)
+      (self<=>(other_component)) != -1
+    end
+
+    def <=>(other_component)
+      return 0 unless other_component.is_a?(Diversity::Component)
+      return @configuration.name <=> other_component.name if
+        @configuration.name != other_component.name
+      # Return newer versions before older ones
+      other_component.version <=> @configuration.version
+    end
+
+    def ==(other_component)
+      return false unless other_component.is_a?(Diversity::Component)
+      @checksum == other_component.checksum
+    end
+
     private
 
     # Parses requirement strings and creates requirements that matches the requirements
@@ -141,32 +145,14 @@ module Diversity
     # @return [Array]
     def get_dependencies(hsh)
       hsh.each_with_object({}) do |e, res|
+        req_string = e.last.to_s
         # We need to handle both remote and local dependencies
-        if remote?(e.last.to_s) # Remote dependency
-          req = Addressable::URI.parse(e.last.to_s)
+        if remote?(req_string) # Remote dependency
+          req = Addressable::URI.parse(req_string)
         else # Local dependency
-          req = Gem::Requirement.new(normalize_requirement(e.last.to_s))
+          req = Gem::Requirement.new(normalize_requirement(req_string))
         end
         res[e.first.to_s] = req
-      end
-    end
-
-    # Returns options associated with the component, either directly from the config file
-    # or by downloading a schema from the specified URL
-    #
-    # @param [Hash|String] options
-    # @return [Hash]
-    def get_options(options)
-      return options, nil if options.is_a?(Hash)
-      options_str = options.to_str # Force to string
-      options_url = remote?(options_str) ? options_str : File.join(base_path, options_str)
-      fail Diversity::Exception,
-           'Failed to load options schema',
-           caller unless (data = safe_load(options_url))
-      begin
-        return JSON.parse(data), options_str
-      rescue JSON::ParserError
-        raise Diversity::Exception, 'Failed to parse options schema', caller
       end
     end
 
@@ -188,39 +174,34 @@ module Diversity
     # @param [Hash] hsh
     # @return [nil]
     def populate(hsh)
-      @name = hsh['name']
-      @version = Gem::Version.new(hsh['version'])
-      @templates = Rake::FileList.new(hsh.fetch('template', []))
-      @styles = Rake::FileList.new(hsh.fetch('style', []))
-      @scripts = Rake::FileList.new(hsh.fetch('script', []))
-      @dependencies = get_dependencies(hsh.fetch('dependencies', {}))
-      @type = hsh.fetch('type', nil)
-      @pagetype = hsh.fetch('pagetype', nil)
-      @context = hsh.fetch('context', {})
-      @options, @options_src = get_options(hsh.fetch('options', {}))
-      @angular = hsh.fetch('angular', nil)
-      @angular = @name if @angular == true # If set to true, use component name
-      @partials = hsh.fetch('partials', {})
-      @themes = Rake::FileList.new(hsh.fetch('themes', []))
-      @fields = hsh.fetch('fields', {})
-      @title = hsh.fetch('title', nil)
-      @description = hsh.fetch('description', nil)
-      @thumbnail = hsh.fetch('thumbnail', nil)
-      @price = hsh.fetch('price', nil)
-      @assets = Rake::FileList.new(hsh.fetch('assets', []))
-      @i18n = hsh.fetch('i18n', {})
-    end
-
-    # Validates configuration and throws an exception if something invalid is discovered
-    # @param [String] data
-    # @raise [Diversity::Exception] if the configuration contains invalid data
-    # @return [nil]
-    def validate_config(data)
-      schema = File.join(File.dirname(__FILE__), 'diversity.schema.json')
-      errors = JSON::Validator.fully_validate(schema, data)
-      # fail Diversity::Exception,
-      #      "Configuration does not match schema. Errors:\n#{errors.join("\n")}",
-      #      caller unless errors.empty?
+      @configuration.name = hsh['name']
+      @configuration.version = Gem::Version.new(hsh['version'])
+      @configuration.templates = Rake::FileList.new(hsh.fetch('template', []))
+      @configuration.styles = Rake::FileList.new(hsh.fetch('style', []))
+      @configuration.scripts = Rake::FileList.new(hsh.fetch('script', []))
+      @configuration.dependencies = get_dependencies(hsh.fetch('dependencies', {}))
+      @configuration.type = hsh.fetch('type', nil)
+      @configuration.pagetype = hsh.fetch('pagetype', nil)
+      @configuration.context = hsh.fetch('context', {})
+      settings = hsh.fetch('settings', {})
+      if settings.is_a?(Hash)
+        @configuration.settings = JsonSchema.new(settings, nil)
+      elsif settings.is_a?(String)
+        @configuration.settings = JsonSchema.new({}, settings)
+      else
+        @configuration.settings = JsonSchema.new({}, nil)
+      end
+      @configuration.angular = hsh.fetch('angular', nil)
+      @configuration.angular = @configuration.name if @configuration.angular == true # If set to true, use component name
+      @configuration.partials = hsh.fetch('partials', {})
+      @configuration.themes = Rake::FileList.new(hsh.fetch('themes', []))
+      @configuration.fields = hsh.fetch('fields', {})
+      @configuration.title = hsh.fetch('title', nil)
+      @configuration.description = hsh.fetch('description', nil)
+      @configuration.thumbnail = hsh.fetch('thumbnail', nil)
+      @configuration.price = hsh.fetch('price', nil)
+      @configuration.assets = Rake::FileList.new(hsh.fetch('assets', []))
+      @configuration.i18n = hsh.fetch('i18n', {})
     end
   end
 end

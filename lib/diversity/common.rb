@@ -13,6 +13,26 @@ module Diversity
       %r{^(https?|ftp)://.*$} =~ res.to_s
     end
 
+    # Create a list of absolute paths from a base path and a list of
+    # relative paths.
+    #
+    # @param [String] base_path
+    # @param [Enumerable|String] file_list
+    # @return [Array]
+    def expand_relative_paths(base_path, file_list)
+      return nil if file_list.nil?
+      if file_list.respond_to?(:each)
+        file_list.map do |file|
+          res = file.to_s
+          remote?(res) ? res : File.join(base_path, res)
+        end
+      else
+        f = file_list.to_s
+        return file_list if f.empty?
+        remote?(f) ? f : File.join(base_path, f)
+      end
+    end
+
     # Normalizes a requirement string so that it can be parsed by Gem::Requirement
     #
     # @param [String] requirement_string
@@ -21,9 +41,21 @@ module Diversity
     # http://www.devalot.com/articles/2012/04/gem-versions.html
     def normalize_requirement(requirement_string)
       req = requirement_string.to_s
-      # Watch out for those crazy hats!
-      if /^\^(.*)/ =~ req
-        version = Gem::Version.new($LAST_MATCH_INFO[1])
+      if req == '*'
+        req = '>0'
+      elsif /^\^(.*)/ =~ req
+        begin
+          req = $LAST_MATCH_INFO[1]
+          version = Gem::Version.new(req)
+        rescue ArgumentError => err
+          # Invalid requirement, try again with all wildcards removed
+          begin
+            req.gsub!(/[^\d\.]/, '')
+            version = version = Gem::Version.new(req)
+          rescue ArgumentError
+            fail Diversity::Exception, "Invalid requirement #{req}"
+          end
+        end
         if version < Gem::Version.new('0.1.0')
           req = "=#{version}"
         elsif version < Gem::Version.new('1.0.0')
@@ -39,13 +71,13 @@ module Diversity
     # Safely loads a resource without raising any exceptions. If the resource cannot
     # be fetched, nil is returned.
     #
-    # @param [String] res A resource, either a file or an URL
+    # @param [String] resource A resource, either a file or an URL
     # @return [String|nil]
-    def safe_load(res)
+    def safe_load(resource)
       data = nil
       begin
-        Kernel.open(res) do |r|
-          data = r.read
+        Kernel.open(resource) do |res|
+          data = res.read
         end
       rescue StandardError
       ensure
@@ -54,14 +86,27 @@ module Diversity
       end
     end
 
+    # Loads a JSON resource, parses it and returns a Diversity::JsonObject
+    #
+    # @param[String] resource
+    # @param[Class] klass
+    def load_json(resource, klass = JsonObject)
+      fail "Failed to load JSON from #{resource}" unless (data = safe_load(resource))
+      begin
+        JsonObject[JSON.parse(data, symbolize_names: false), resource, klass]
+      rescue JSON::ParserError
+        raise Diversity::Exception, "Failed to parse schema from #{resource}", caller
+      end
+    end
+
     # Gets the "parent" of an URL
     #
-    # @param [String] s
+    # @param [String] url_string
     # @return [String]
-    def uri_base_path(s)
-      u = Addressable::URI.parse(s)
-      u.path = File.dirname(u.path)
-      u.to_s
+    def uri_base_path(url_string)
+      url = Addressable::URI.parse(url_string)
+      url.path = File.dirname(url.path)
+      url.to_s
     end
   end
 end
