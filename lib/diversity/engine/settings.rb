@@ -4,7 +4,7 @@ module Diversity
     class Settings
 
       def initialize(registry)
-        @component_set = Diversity::Registry::Set.new(registry)
+        @component_set = Diversity::ComponentSet.new(registry)
         @paths = {}
       end
 

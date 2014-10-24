@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 require 'mustache'
 require_relative 'engine/settings'
 
@@ -19,99 +20,116 @@ module Diversity
 
     def initialize(options = {})
       @options = DEFAULT_OPTIONS.merge(options)
+      @debug_level = 0
+
       # Ensure that we have a valid registry to work against
-      fail 'Cannot run engine without a valid registry!' unless @options[:registry].is_a?(Registry::Base)
+      fail 'Cannot run engine without a valid registry!' unless
+        @options[:registry].is_a?(Registry::Base)
     end
 
     # Renders a component
+    # 
     # @param [Diversity::Component] component
-    # @param [Diversity::JsonObject] json_settings
-    # @param [Array] key
+    # @param [Hash]   context   Context to render in.
+    # @param [Hash]   settings  Settings for this component rendering.
+    # @param [Array]  path      Array representing json path from root.
+    # 
     # @return [Hash|String]
-    def render(component, context = {}, json_settings = JsonObject.new({}), key = [])
-      # Some basic validation that protects us from rendering stuff we
-      # cannot handle
-      fail 'First argument must be a Diversity::Component, but you sent ' \
-           " a #{component.class}" unless component.is_a?(Component)
-      fail 'Third argument must be a Diversity::JsonObject, but you sent ' \
-           "a #{json_settings.class}" unless json_settings.is_a?(JsonObject)
-      validate_settings(component.settings, json_settings)
+    def render(component, context = {}, component_settings = {}, path = [])
+      add_component(component)
 
-      # Step 1 - Load components that we depend on
-      components = @options[:registry].expand_component_list(component)
-      update_settings(components)
+      # Get component schema
+      schema = component.settings.data
 
-      # 3. Extract subcomponents from the settings
-      # 4. Make sure that all components are available
-      # 5. Iterate through the list of components (from the "innermost") and render them
+      debug("/#{path.join('/')} - #{component.name}:#{component.version}:\n", 1)
+      debug("Settings original: #{component_settings}\n")
 
-      # all_templatedata represents *all* templatedata gathered so far
-      # After the following loop it will contain the template data of
-      # all *subcomponents* of the current components
-      all_templatedata = {}
-      get_subcomponents(component, json_settings).each do |sub|
-        sub_key = sub[2]
-        all_templatedata[sub_key] ||= []
-        all_templatedata[sub_key] << render(sub[0], context, sub[1], sub_key)[sub_key]
-      end
+      # Traverse the component_settings to expand sub-components
+      expanded_settings = expand_settings(schema, component_settings, context, path)
 
-      # Components might contain more than one subcomponent. In that case,
-      # make sure that we merge all rendered HTML into a single element
-      all_templatedata = self.class.merge_contents(all_templatedata)
-
-      # current_templatedata represents the templatedata for the *current*
-      # component. Since the rendering of the current component is esentially
-      # wrapping up the HTML of all subcomponents we build this structure
-      # from all the previously rendered components.
-      current_templatedata = {}
-      all_templatedata.each_pair do |hkey, hvalue|
-        new_key = (hkey.dup) << 'componentHTML'
-        node = [new_key, hvalue]
-        current_templatedata = self.class.deep_merge(current_templatedata, node_to_hash(node))
-      end
-
-      # Merge current_templatedata with the current settings
-      settings_hash = {}
-      if key.empty?
-        settings_hash[:settings] = current_templatedata
-      else
-        settings_hash[:settings] = self.class.deep_merge(json_settings.data, current_templatedata)
-      end
-
-      # According to David we need the settings as JSON as well
-      settings_hash[:settingsJSON] =
-        settings_hash[:settings].to_json.gsub(/<\/script>/i, '<\\/script>')
-      if key.empty? # TOP LEVEL, we need to render scripts and styles
-        settings_hash['angularBootstrap'] =
-          "angular.bootstrap(document,#{settings.angular.to_json});"
-        settings_hash['scripts'] = settings.scripts
-        settings_hash['styles'] = settings.styles
-      end
+      #debug("Settings expanded: #{expanded_settings}\n")
 
       templates = component.templates.map do |template|
         self.class.expand_relative_paths(component.base_path, template)
       end
 
-      debug(
-        "Rendering templates for #{key.inspect} using " \
-        "component #{component.name} #{component.version} " \
-        "with context\n#{context.inspect}\nand settings\n" \
-        "#{settings_hash.inspect}\n\n"
-      )
+      html = templates.map do |template|
+        render_template(component, template, context, expanded_settings)
+      end.join('')
 
-      all_templates = []
-      templates.each do |template|
-        all_templates << render_template(component, template, context, settings_hash)
-      end
-      all_templatedata[key] = all_templates.join('')
+      debug("Rendered:\n#{html}\n\n", -1)
 
-      if key.empty?
-        delete_settings
-        all_templatedata[key]
-      else
-        all_templatedata
-      end
+      html
     end
+
+    # Expands the component_settings, replacing components with HTML and adding components to set
+    #
+    # @return expanded_settings
+    def expand_settings(schema, component_settings, context = {}, path = ())
+      if component_settings.is_a?(Hash)
+        expanded_settings = {}
+
+        component_settings.each_pair do |key, sub_settings|
+          sub_path = path.clone
+          sub_path << key
+
+          # Get the sub_schema from schema.  This only works with simple schema, should really be
+          # done with a json-schema-lib that can expand, chose one-of etc.
+          if schema.has_key?('properties') and schema['properties'].has_key?(key)
+            sub_schema = schema['properties'][key]
+          elsif schema.has_key?('additionalProperties')
+            sub_schema = schema['additionalProperties']
+          else
+            #fail "No properties/#{key} at /#{path.join('/')} in " + JSON.pretty_generate(schema)
+            puts " FAIL: No properties/#{key} at /#{path.join('/')} in " +
+              JSON.pretty_generate(schema)
+            return
+          end
+
+          if sub_schema.has_key?('format') and sub_schema['format'] == 'diversity'
+            # Replace the setting with HTML output from the component
+            version         = sub_settings.has_key?('version' ) ? sub_settings['version' ] : nil
+            subsub_settings = sub_settings.has_key?('settings') ? sub_settings['settings'] : nil
+            sub_component   = get_component(sub_settings['component'], version)
+
+            expanded_settings[key] =
+              { componentHTML: render(sub_component, context, subsub_settings, sub_path) }
+          else
+            expanded_settings[key] = expand_settings(sub_schema, sub_settings, context, sub_path)
+          end
+        end
+      elsif component_settings.is_a?(Array)
+        expanded_settings = []
+
+        # Pick schema for array items from schema items.  …this is also simplified…
+        sub_schema = schema['items']
+
+        # @todo Check additionalItems
+
+        component_settings.each_with_index do |sub_settings, index|
+          sub_path = path.clone
+          sub_path  << index
+
+          if sub_schema.has_key?('format') and sub_schema['format'] == 'diversity'
+            # Replace the setting with HTML output from the component
+            version         = sub_settings.has_key?('version' ) ? sub_settings['version' ] : nil
+            subsub_settings = sub_settings.has_key?('settings') ? sub_settings['settings'] : nil
+            sub_component   = @options[:registry].get_component(sub_settings['component'], version)
+
+            expanded_settings <<
+              { componentHTML: render(sub_component, context, subsub_settings, sub_path) }
+            #debug("Rendered: #{expanded_settings.last}")
+          else
+            expanded_settings << expand_settings(sub_schema, sub_settings, context, sub_path)
+          end
+        end
+      else
+        expanded_settings = component_settings
+      end
+
+      expanded_settings
+    end
+
 
     private
 
@@ -127,8 +145,9 @@ module Diversity
       self.class.settings.delete(self)
     end
 
-    def debug(msg)
-      @options[:debug_logger] << msg if @options[:debug_logger]
+    def debug(msg, debug_delta = 0)
+      @options[:debug_logger] << '  ' * @debug_level + msg if @options[:debug_logger]
+      @debug_level += debug_delta
     end
 
     def public_path(component)
@@ -142,12 +161,20 @@ module Diversity
       File.join(component.base_path, component.name, component.version.to_s)
     end
 
+    def get_component(name, version = nil)
+      component = @options[:registry].get_component(name, version)
+      fail "No component from #{sub_settings['component']}" unless sub_component
+      add_component(component)
+    end
+
     # Update the rendering context with data from the currently
     # rendering component.
     #
     # @param [Array] An array of Diversity::Component objects
     # @return [nil]
-    def update_settings(components)
+    def add_component(component)
+      components = @options[:registry].expand_component_list(component)
+      
       components.each do |component|
         settings.add_component(component, public_path(component))
       end
@@ -195,79 +222,32 @@ module Diversity
       end
     end
 
-    # Returns an array of possible subcomponents for the specified component
-    #
-    # @param [Diversity::Component] component
-    # @param [Diversity::JsonObject] settings
-    # @return [Array]
-    def get_subcomponents(component, settings)
-      subcomponents = []
-      component_keys = component.settings.select do |node|
-        last = node.last
-        !last.is_a?(Array) &&
-        last['type'] == 'object' && last['format'] == 'diversity'
-      end
-      return [] if component_keys.empty?
-      component_keys.map!(&:first)
-      new_keys = []
-      component_keys.each do |key|
-        key.pop if key.last == 'items'
-        key.reject! { |e| e == 'properties' }
-        if (idx = key.find_index('items'))
-          before = key[0...idx]
-          item_settings = self.class.extract_setting(before, settings)
-          next if item_settings.nil? || item_settings.empty?
-          0.upto(item_settings.length - 1) do |n|
-            new_keys << (before.dup << n).concat(key[idx + 1..-1])
-          end
-        else
-          new_keys << key
-        end
-      end
-      # Sort by key length first and then by each key
-      klass = self.class
-      new_keys = new_keys.sort do |one_obj, another_obj|
-        klass.sort_by_key(one_obj, another_obj)
-      end
-      new_keys.each do |key|
-        components = klass.extract_setting(key, settings)
-        next if components.nil?
-        components.each do |c|
-          comp = @options[:registry].get_component(c['component'])
-          fail "Cannot load component #{c['component']}" if comp.nil?
-          subcomponents << [comp, JsonObject[c['settings']], key]
-        end
-      end
-      subcomponents
-    end
-
-    # Given a schema key, returns the setting associated with that key
-    # @param [Array] key
-    # @param [Diversity::JsonSchema] settings
-    # @return [Array]
-    def self.extract_setting(key, settings)
-      new_key = key.dup
-      last = new_key.pop
-      data = settings[new_key]
-      return [] unless data && !data.empty?
-      setting = data[last]
-      return [] unless setting && !setting.empty?
-      [setting].flatten # Always return an array
-    end
-
     # Given a component, a mustache template and some settings, return
     # a rendered HTML string.
     #
     # @param [Diversity::Component] component
     # @param [String] template
-    # @param [Hash] settings
+    # @param [Hash] component_settings
+    # 
     # @return [String]
-    def render_template(component, template, context, settings)
+    def render_template(component, template, context, component_settings)
+
+      mustache_settings = {}
+      mustache_settings[:settings]     = component_settings
+      mustache_settings[:settingsJSON] =
+        component_settings.to_json.gsub(/<\/script>/i, '<\\/script>')
+
+      # Add angularBootstrap, scripts and styles for this level.
+      mustache_settings['angularBootstrap'] =
+        "angular.bootstrap(document,#{settings.angular.to_json});"
+      mustache_settings['scripts'] = settings.scripts
+      mustache_settings['styles']  = settings.styles
+
       template_data = self.class.safe_load(template)
       return nil unless template_data # No need to render empty templates
       # Add data from API
       rcontext = component.resolve_context(context[:backend_url], context)
-      rcontext = self.class.deep_merge(settings, {context: rcontext})
+      rcontext = self.class.deep_merge(mustache_settings, {context: rcontext})
       # Add some tasty Mustache lambdas
       rcontext['currency'] =
         lambda do |text, render|
@@ -285,60 +265,6 @@ module Diversity
       end
       # Return rendered data
       Mustache.render(template_data, rcontext)
-    end
-
-    # Compares two nodes by key_length and then key-by-key
-    #
-    # @param [Array] one_obj
-    # @param [Array] another_obj
-    # @return [Fixnum]
-    def self.sort_by_key(one_obj, another_obj)
-      len_cmp = another_obj.length  <=> one_obj.length
-      return len_cmp if len_cmp.nonzero?
-      one_obj.each_with_index do |key, index|
-        key2 = another_obj[index]
-        next if key.class != key2.class
-        if key.is_a?(Fixnum) && key2.is_a?(Fixnum)
-          key_cmp = key <=> key2
-        else
-          key_cmp = key2 <=> key
-        end
-        return key_cmp if key_cmp.nonzero?
-      end
-      0
-    end
-
-    # Converts a "node" array to a regular hash
-    #
-    # @param [Array] node
-    # @return [Hash]
-    def node_to_hash(node)
-      key, value = node
-      fail 'Empty key not allowed' if key.empty?
-      current_container = {}
-      outermost_container = current_container
-      key.each_with_index do |elem, index|
-        if index < key.length - 1
-          if key[index].is_a?(Fixnum)
-            if key[index + 1].is_a?(Fixnum)
-              current_container << []
-            else
-              current_container << {}
-            end
-            current_container = current_container.last
-          else
-            if key[index + 1].is_a?(Fixnum)
-              current_container[elem] = []
-            else
-              current_container[elem] = {}
-            end
-            current_container = current_container[elem]
-          end
-        else
-          current_container[elem] = value
-        end
-      end
-      outermost_container
     end
   end
 end

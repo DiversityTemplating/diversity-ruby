@@ -38,8 +38,16 @@ module Diversity
         return self.class.installed_components[@options[:base_path]] if
           self.class.installed_components.key?(@options[:base_path])
         Dir.chdir(@options[:base_path]) do
-          self.class.installed_components[@options[:base_path]] = Dir.glob(GLOB).reduce([]) do |res, cfg|
-            res << Component.new(cfg, true) # No need to validate here
+          self.class.installed_components[@options[:base_path]] =
+            Dir.glob(GLOB).reduce([]) do |res, cfg|
+
+            begin
+              component = Component.new(cfg, true) # No need to validate here
+              res << component if res
+            rescue Diversity::Exception
+              puts "Caught an exception trying to put #{cfg} in list of installed components."
+            end
+            res
           end
         end
         self.class.installed_components[@options[:base_path]]

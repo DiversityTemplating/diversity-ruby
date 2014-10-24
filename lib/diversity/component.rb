@@ -37,10 +37,12 @@ module Diversity
       define_method(property_name) { @configuration[property_name] }
     end
 
-    # Creates a new component from a configuration resource (file or URL)
+    # Creates a new component
     #
-    # @param [String] resource configuration resource
+    # @param [String] resource configuration resource (filename or URL to diversity.json)
+    # 
     # @raise [Diversity::Exception] if the resource cannot be loaded
+    # 
     # @return [Diversity::Component]
     def initialize(resource, skip_validation = false)
       fail Diversity::Exception,
@@ -74,7 +76,7 @@ module Diversity
     # @param [Hash] context Context variables
     # @return [Hash]
     def resolve_context(backend_url, context = {})
-      client = JsonRpcClient.new(backend_url.to_s, asynchronous_calls: false)
+      #client = JsonRpcClient.new(backend_url.to_s, asynchronous_calls: false)
       resolved_context = {}
       context.each_pair do |key, settings|
         unless settings.is_a?(Hash)
@@ -94,15 +96,15 @@ module Diversity
           end
           param
         end
-        # Round 2 - Query API
-        result = nil
-        EventMachine.run do
-          fiber = Fiber.new do
-            result = client._call_sync(new_settings['method'], new_settings['params'])
-            EventMachine.stop
-          end
-          fiber.resume
-        end
+        # # Round 2 - Query API
+        # result = nil
+        # EventMachine.run do
+        #   fiber = Fiber.new do
+        #     result = client._call_sync(new_settings['method'], new_settings['params'])
+        #     EventMachine.stop
+        #   end
+        #   fiber.resume
+        # end
         resolved_context[key] = result
       end
       resolved_context
@@ -165,7 +167,7 @@ module Diversity
       begin
         JSON.parse(data, symbolize_names: false)
       rescue JSON::ParserError
-        raise Diversity::Exception, 'Failed to parse config file', caller
+        raise Diversity::Exception, "Failed to parse config file from #{@configuration.src}", caller
       end
     end
 

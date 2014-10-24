@@ -11,7 +11,7 @@ module Diversity
       # @param [Array] components An array of components
       # @return [Array] An expanded array of components
       def expand_component_list(*components)
-        set = Diversity::Registry::Set.new(self)
+        set = Diversity::ComponentSet.new(self)
         components.flatten.each { |component| set << component }
         set.to_a
       end
@@ -24,6 +24,11 @@ module Diversity
       #   version.
       # @return [Component|nil]
       def get_component(name, version = nil)
+        #components = get_matching_components(name, version)
+        #
+        #puts "Finding #{name}	#{version}}, matched: " +
+        #  components.map { |component| component.version.to_s }.to_s
+
         get_matching_components(name, version).first
       end
 
