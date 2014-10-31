@@ -18,6 +18,8 @@ Gem::Specification.new do |s|
   s.add_dependency('json-schema', '=2.2.1')
   s.add_dependency('mustache')
   s.add_dependency('ruby-cache')
+  s.add_dependency('cache')
+  s.add_dependency('unirest')
 
   s.add_development_dependency('bacon')
   s.add_development_dependency('coveralls')

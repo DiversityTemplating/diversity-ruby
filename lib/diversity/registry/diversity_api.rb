@@ -1,5 +1,6 @@
 require 'cache'
 require 'json'
+require 'unirest'
 
 module Diversity
   module Registry
@@ -62,7 +63,7 @@ module Diversity
           Gem::Requirement.create(version)
 
         versions = get_installed_versions(name) or return super
-        version_path = versions.          
+        version_path = versions.
           select {|version_obj| requirement.satisfied_by?(version_obj) }.
           sort.
           last.
@@ -76,7 +77,7 @@ module Diversity
           self, spec,
           { base_url: base_url, skip_validation: @options[:skip_validation] }
         )
-      end      
+      end
 
       def cache_contains?(url)
         @cache.cached?(url)
