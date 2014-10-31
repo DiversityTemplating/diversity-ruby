@@ -84,12 +84,13 @@ module Diversity
                   base_url: @options[:base_url] ?
                     @options[:base_url] + '/' + File.dirname(cfg) : nil,
                   base_path: File.dirname(src),
-                  skip_validation: true,
+                  #skip_validation: true,
                 }
               )
               res << component if res
-            rescue Diversity::Exception
+            rescue Diversity::Exception => e
               puts "Caught an exception trying to put #{cfg} in list of installed components."
+              p e
             end
             res
           end

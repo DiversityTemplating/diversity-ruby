@@ -26,12 +26,12 @@ module Diversity
     end
 
     # Renders a component
-    # 
+    #
     # @param [Diversity::Component] component
     # @param [Hash]   context   Context to render in.
     # @param [Hash]   settings  Settings for this component rendering.
     # @param [Array]  path      Array representing json path from root.
-    # 
+    #
     # @return [Hash|String]
     def render(component, context = {}, component_settings = {}, path = [])
       add_component(component)
@@ -47,7 +47,9 @@ module Diversity
       # Traverse the component_settings to expand sub-components
       expanded_settings = expand_settings(schema, component_settings, context, path)
 
-      render_template(component, context, expanded_settings)
+      html = render_template(component, context, expanded_settings)
+      debug("Rendered: #{html}\n")
+      html
     end
 
     # Expands the component_settings, replacing components with HTML and adding components to set
@@ -154,7 +156,7 @@ module Diversity
     # @return [nil]
     def add_component(component)
       components = @options[:registry].expand_component_list(component)
-      
+
       components.each do |component|
         settings.add_component(component)
       end
@@ -171,7 +173,7 @@ module Diversity
     # @param [Diversity::Component] component
     # @param [String] template
     # @param [Hash] component_settings
-    # 
+    #
     # @return [String]
     def render_template(component, context, component_settings)
 
@@ -205,7 +207,7 @@ module Diversity
         end
       mustache_settings['lang'] = lambda do |text|
         # TODO: Fix language until we decide how to set it
-        text.gsub(/lang/, 'sv')
+        text.gsub(/lang/, context['language'] || 'sv')
       end
       # Return rendered data
       Mustache.render(template_mustache, mustache_settings)

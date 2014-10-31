@@ -62,7 +62,12 @@ module Diversity
           version.is_a?(Gem::Requirement)  ? version                  :
           Gem::Requirement.create(version)
 
-        versions = get_installed_versions(name) or return super
+        begin
+          versions = get_installed_versions(name)
+        rescue
+          # If the component isn't available by diversity api, let someone else try.
+          return super
+        end
         version_path = versions.
           select {|version_obj| requirement.satisfied_by?(version_obj) }.
           sort.
