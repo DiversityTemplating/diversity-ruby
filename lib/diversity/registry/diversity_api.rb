@@ -1,6 +1,5 @@
 require 'cache'
 require 'json'
-require 'unirest'
 
 module Diversity
   module Registry
