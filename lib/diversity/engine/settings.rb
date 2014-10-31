@@ -5,12 +5,10 @@ module Diversity
 
       def initialize(registry)
         @component_set = Diversity::ComponentSet.new(registry)
-        @paths = {}
       end
 
-      def add_component(component, path)
+      def add_component(component)
         @component_set << component
-        @paths[component.checksum] = path
       end
 
       def angular
@@ -24,23 +22,11 @@ module Diversity
       end
 
       def scripts
-        @component_set.to_a.inject([]) do |scripts, comp|
-          scripts.concat(
-            Diversity::Engine.expand_relative_paths(
-              @paths[comp.checksum], comp.scripts
-            )
-          )
-        end
+        @component_set.to_a.map { |comp| comp.scripts }.flatten
       end
 
       def styles
-        @component_set.to_a.inject([]) do |styles, comp|
-          styles.concat(
-            Diversity::Engine.expand_relative_paths(
-              @paths[comp.checksum], comp.styles
-            )
-          )
-        end
+        @component_set.to_a.map { |comp| comp.styles }.flatten
       end
     end
   end

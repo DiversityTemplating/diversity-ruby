@@ -20,6 +20,7 @@ module Diversity
       def initialize(options = {})
         @options = DEFAULT_OPTIONS.merge(options)
         @cache = Cache.new(@options[:cache_options])
+        @loaded = {}
         fail 'Invalid backend URL!' unless ping_ok
       end
 
@@ -33,13 +34,16 @@ module Diversity
           version_objs = get_installed_versions(component[:name])
           version_objs.each do |version_obj|
             begin
+              base_url = "#{@options[:backend_url]}components/#{component[:name]}" +
+                "/#{version_obj.to_s}/files"
+              spec = safe_load("#{base_url}/diversity.json")
+              puts "Got spec from #{component[:name]}:#{version_obj} on #{base_url}:\n#{spec}"
+
               component_objs <<
                 Component.new(
-                  File.join(
-                    @options[:backend_url], 'components', component[:name],
-                    version_obj.to_s, 'files', 'diversity.json'
-                  ),
-                  @options[:skip_validation]
+                  self,
+                  spec,
+                  { base_url: base_url, skip_validation: @options[:skip_validation] }
                 )
             rescue Exception => err
               next # Silently ignore non-working components
@@ -48,6 +52,32 @@ module Diversity
         end
         component_objs
       end
+
+      def get_component(name, version = nil)
+        cache_key = "#{name}:#{version}"
+        return @loaded[cache_key] if @loaded.has_key?(cache_key)
+
+        requirement =
+          (version.nil? or version == '*') ? Gem::Requirement.default :
+          version.is_a?(Gem::Requirement)  ? version                  :
+          Gem::Requirement.create(version)
+
+        versions = get_installed_versions(name) or return super
+        version_path = versions.          
+          select {|version_obj| requirement.satisfied_by?(version_obj) }.
+          sort.
+          last.
+          to_s
+
+        base_url = "#{@options[:backend_url]}components/#{name}/#{version_path}/files"
+        spec = safe_load("#{base_url}/diversity.json")
+        puts "Got spec from #{name}:#{version_path} on #{base_url}:\n#{spec}"
+
+        @loaded[cache_key] = Component.new(
+          self, spec,
+          { base_url: base_url, skip_validation: @options[:skip_validation] }
+        )
+      end      
 
       def cache_contains?(url)
         @cache.cached?(url)
@@ -85,7 +115,7 @@ module Diversity
         end
         return @cache[url] if @cache.cached?(url)
         response = Unirest.get(url)
-        fail 'Error when calling API' unless response.code == 200
+        fail "Error when calling API on #{url}: #{response.inspect}" unless response.code == 200
         fail 'Invalid content type' unless response.headers[:content_type] == 'application/json'
         @cache[url] = JSON.parse(response.raw_body, symbolize_names: true)
         @cache[url]

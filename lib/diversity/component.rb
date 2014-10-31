@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 require 'digest/sha1'
 require 'eventmachine'
 require 'fiber'
@@ -24,13 +25,19 @@ module Diversity
 
     attr_reader :checksum, :raw
 
+    DEFAULT_OPTIONS = {
+      base_url:        nil,
+      base_path:       nil,  # Can be set to something more readily readable than base_url
+      skip_validation: false,
+    }
+
     # Cmponent configuration
     Configuration =
       Struct.new(
         :name, :version, :templates, :styles, :scripts, :dependencies,
         :type, :pagetype, :context, :settings, :angular,
         :partials, :themes, :fields, :title, :thumbnail, :price, :assets,
-        :src, :i18n, :base_path, :description
+        :src, :i18n, :description
       )
 
     Configuration.members.each do |property_name|
@@ -39,26 +46,29 @@ module Diversity
 
     # Creates a new component
     #
-    # @param [String] resource configuration resource (filename or URL to diversity.json)
+    # The factoring Registry will be responsible for getting dependencies.
+    #
+    # @param [Diversity::Registry::Base]  The registry factoring this component.
+    # @param [String] spec     The diversity.json of the component (as JSON string).
+    # @param [Hash]   options  Options: base_url, skip_validation
     # 
     # @raise [Diversity::Exception] if the resource cannot be loaded
     # 
     # @return [Diversity::Component]
-    def initialize(resource, skip_validation = false)
-      fail Diversity::Exception,
-           "Failed to load component configuration from #{resource}",
-           caller unless (data = safe_load(resource))
+    def initialize(registry, spec, options)
+      # fail Diversity::Exception,
+      #      "Failed to load component configuration from #{resource}",
+      #      caller unless (data = safe_load(resource))
       @configuration = Configuration.new
-      if remote?(resource)
-        @configuration.src = Addressable::URI.parse(resource).to_s
-        @configuration.base_path = uri_base_path(@configuration.src)
-      else
-        @configuration.src = File.expand_path(resource)
-        @configuration.base_path = File.dirname(@configuration.src)
-      end
+      @options = DEFAULT_OPTIONS.merge(options)
+
       schema = JsonSchemaCache[MASTER_COMPONENT_SCHEMA]
-      schema.validate(data) unless skip_validation
-      @raw = parse_config(data)
+      begin
+        schema.validate(spec) unless @options[:skip_validation]
+      rescue Diversity::Exception => err
+        puts "Bad diversity.json: #{err}\n\n"
+      end
+      @raw = parse_config(spec)
       @checksum = Digest::SHA1.hexdigest(dump)
       populate(@raw)
     end
@@ -139,11 +149,42 @@ module Diversity
       @checksum == other_component.checksum
     end
 
+    def template_mustache
+      templates.map do |template|
+        if (@options[:base_path])
+          File.read(File.join(@options[:base_path], template))
+        else
+          puts "Attempting to load #{@options[:base_url]}/#{template}"
+          safe_load("#{@options[:base_url]}/#{template}")
+        end
+      end.join('')
+    end
+
+    def scripts
+      @configuration.scripts.map do |script|
+        if remote?(script)
+          script
+        else
+          @options[:base_url] + '/' + script
+        end
+      end
+    end
+
+    def styles
+      @configuration.styles.map do |style|
+        if remote?(style)
+          style
+        else
+          @options[:base_url] + '/' + style
+        end
+      end
+    end
+
     private
 
     # Parses requirement strings and creates requirements that matches the requirements
     # of the current component
-    # @param [Hash] hsh
+    # @param [Hash] dependencies part of diversity.json
     # @return [Array]
     def get_dependencies(hsh)
       hsh.each_with_object({}) do |e, res|

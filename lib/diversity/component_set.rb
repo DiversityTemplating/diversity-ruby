@@ -18,8 +18,6 @@ module Diversity
       # Don't keep multiple instances in the array!
       return @components if @components.include?(component)
 
-      @components << component
-
       # Add depencencies
       component.dependencies.each_pair do |name, req|
         if req.is_a?(Addressable::URI) || req.is_a?(URI)
@@ -36,6 +34,9 @@ module Diversity
         "#{component.version}.", caller unless dependency
         self << dependency
       end
+
+      # Add component itself.  Must be done after dependencies.
+      @components << component
 
       # Resolve different versions of a component
       groups = @components.group_by { |c| c.name }

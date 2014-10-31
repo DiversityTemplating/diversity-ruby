@@ -24,34 +24,7 @@ module Diversity
       #   version.
       # @return [Component|nil]
       def get_component(name, version = nil)
-        #components = get_matching_components(name, version)
-        #
-        #puts "Finding #{name}	#{version}}, matched: " +
-        #  components.map { |component| component.version.to_s }.to_s
-
-        get_matching_components(name, version).first
-      end
-
-      # Returns installed components matching the name and version of parameters
-      #
-      # @param [String] name
-      # @param [nil|Gem::Requirement|Gem::Version|String] version
-      # @return [Array]
-      def get_matching_components(name, version = nil)
-        if version.nil? # All versions
-          finder = ->(comp) { comp.name == name }
-        elsif version.is_a?(Gem::Requirement)
-          finder = ->(comp) { comp.name == name && version.satisfied_by?(comp.version) }
-        elsif version.is_a?(Gem::Version)
-          finder = ->(comp) { comp.name == name && comp.version == version }
-        elsif version.is_a?(String)
-          req = Gem::Requirement.new(normalize_requirement(version))
-          finder = ->(comp) { comp.name == name && req.satisfied_by?(comp.version) }
-        else
-          fail Diversity::Exception, "Invalid version #{version}", caller
-        end
-        # Find all matching components and sort them by their version (in descending order)
-        installed_components.select(&finder).sort
+        # @todo Load dependencies specified as URLs?
       end
 
       # Checks whether a component with a specified version is installed.
@@ -69,7 +42,19 @@ module Diversity
       #
       # @return [Component]
       def load_component(res)
-        Component.new(res)
+
+        if remote?(resource)
+          src = Addressable::URI.parse(resource).to_s
+          base_uri = uri_base_path(src)
+        else
+          fail "Please don't end up here."
+
+          src = File.read(resource)
+          base_path = File.dirname(src)
+          #base_uri unknown
+        end
+
+        Component.new(self, src, { base_url: base_url })
       end
     end
   end

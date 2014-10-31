@@ -11,7 +11,8 @@ module Diversity
       # Glob representing locally installed component configurations
       DEFAULT_OPTIONS = {
         base_path: nil,
-        mode:      :default
+        base_url:  nil,
+        mode:      :default,
       }
 
       GLOB = '*/*/diversity.json'
@@ -31,6 +32,38 @@ module Diversity
         @options[:base_path]
       end
 
+      def get_component(name, version = nil)
+        #components = get_matching_components(name, version)
+        #
+        #puts "Finding #{name}	#{version}}, matched: " +
+        #  components.map { |component| component.version.to_s }.to_s
+
+        get_matching_components(name, version).first or return super
+      end
+
+      # Returns installed components matching the name and version of parameters
+      #
+      # @param [String] name
+      # @param [nil|Gem::Requirement|Gem::Version|String] version
+      # @return [Array]
+      def get_matching_components(name, version = nil)
+        if version.nil? # All versions
+          finder = ->(comp) { comp.name == name }
+        elsif version.is_a?(Gem::Requirement)
+          finder = ->(comp) { comp.name == name && version.satisfied_by?(comp.version) }
+        elsif version.is_a?(Gem::Version)
+          finder = ->(comp) { comp.name == name && comp.version == version }
+        elsif version.is_a?(String)
+          req = Gem::Requirement.new(normalize_requirement(version))
+          finder = ->(comp) { comp.name == name && req.satisfied_by?(comp.version) }
+        else
+          fail Diversity::Exception, "Invalid version #{version}", caller
+        end
+
+        # Find all matching components and sort them by their version (in descending order)
+        installed_components.select(&finder).sort
+      end
+
       # Returns a list of locally installed components
       #
       # @return [Array] An array of Component objects
@@ -42,7 +75,18 @@ module Diversity
             Dir.glob(GLOB).reduce([]) do |res, cfg|
 
             begin
-              component = Component.new(cfg, true) # No need to validate here
+              src = File.expand_path(cfg)
+              spec = File.read(src)
+              #src = File.expand_path(cfg)
+
+              component = Component.new(
+                self, spec, {
+                  base_url: @options[:base_url] ?
+                    @options[:base_url] + '/' + File.dirname(cfg) : nil,
+                  base_path: File.dirname(src),
+                  skip_validation: true,
+                }
+              )
               res << component if res
             rescue Diversity::Exception
               puts "Caught an exception trying to put #{cfg} in list of installed components."
@@ -60,7 +104,7 @@ module Diversity
       # @param [bool] force Whether component installation should be forced or not
       # @return [Diversity::Component]
       def install_component(res, force = false)
-        comp = Component.new(res)
+        comp = Component.new(self, res) # No base_uri here
         name = comp.name
         version = comp.version
         # If component is already installed, return locally
@@ -92,7 +136,7 @@ module Diversity
         uninstalled_versions = []
         get_matching_components(name, version).each do |comp|
           uninstalled_versions << comp.version
-          fileutils.rm_rf(comp.base_path)
+          fileutils.rm_rf(comp.base_path) #fixme
         end
         # Invalidate cache (unless we are faking the uninstallation)
         self.class.installed_components.delete(@options[:base_path]) unless noop?
