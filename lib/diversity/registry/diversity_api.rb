@@ -20,7 +20,6 @@ module Diversity
       def initialize(options = {})
         @options = DEFAULT_OPTIONS.merge(options)
         @cache = Cache.new(@options[:cache_options])
-        @loaded = {}
         fail 'Invalid backend URL!' unless ping_ok
       end
 
@@ -54,8 +53,8 @@ module Diversity
       end
 
       def get_component(name, version = nil)
-        cache_key = "#{name}:#{version}"
-        return @loaded[cache_key] if @loaded.has_key?(cache_key)
+        cache_key = "component:#{name}:#{version}"
+        return @cache[cache_key] if @cache.has_key?(cache_key)
 
         requirement =
           (version.nil? or version == '*') ? Gem::Requirement.default :
@@ -70,18 +69,17 @@ module Diversity
         end
         version_path = versions.
           select {|version_obj| requirement.satisfied_by?(version_obj) }.
-          sort.
-          last.
-          to_s
+          sort.last.to_s
 
         base_url = "#{@options[:backend_url]}components/#{name}/#{version_path}/files"
         spec = safe_load("#{base_url}/diversity.json")
         puts "Got spec from #{name}:#{version_path} on #{base_url}:\n#{spec}"
 
-        @loaded[cache_key] = Component.new(
-          self, spec,
-          { base_url: base_url, skip_validation: @options[:skip_validation] }
-        )
+        @cache[cache_key] =
+          Component.new(
+            self, spec,
+            { base_url: base_url, skip_validation: @options[:skip_validation] }
+          )
       end
 
       def cache_contains?(url)

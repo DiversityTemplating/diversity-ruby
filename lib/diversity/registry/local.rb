@@ -1,5 +1,6 @@
 require 'fileutils'
 require 'addressable/uri'
+require 'cache'
 require_relative '../common.rb'
 require_relative '../component.rb'
 require_relative '../exception.rb'
@@ -13,6 +14,8 @@ module Diversity
         base_path: nil,
         base_url:  nil,
         mode:      :default,
+        cache_options: { expiration: 60, max_num: 100 },
+        skip_validation: false
       }
 
       GLOB = '*/*/diversity.json'
@@ -26,6 +29,7 @@ module Diversity
         @options = DEFAULT_OPTIONS.merge(options)
         @options[:base_path] = File.expand_path(@options[:base_path])
         fileutils.mkdir_p(@options[:base_path]) unless File.exist?(@options[:base_path])
+        @cache = Cache.new(@options[:cache_options])
       end
 
       def base_path
@@ -33,12 +37,54 @@ module Diversity
       end
 
       def get_component(name, version = nil)
-        #components = get_matching_components(name, version)
-        #
-        #puts "Finding #{name}	#{version}}, matched: " +
-        #  components.map { |component| component.version.to_s }.to_s
+        cache_key = "component:#{name}:#{version}"
+        return @cache[cache_key] if @cache.has_key?(cache_key)
 
-        get_matching_components(name, version).first or return super
+        name_dir = File.join(@options[:base_path], name)
+
+        # If the component isn't available locally, let someone else try.
+        return super unless Dir.exist?(name_dir)
+
+        Dir.chdir(name_dir) do
+          if File.exist?('diversity.json')
+            # If there's a diversity.json right here, this is a development package.
+            base_url =  @options[:base_url] ? "#{@options[:base_url]}/#{name}" : nil
+            @cache[cache_key] = get_component_by_dir(name_dir)
+          else
+            requirement =
+              (version.nil? or version == '*') ? Gem::Requirement.default :
+              version.is_a?(Gem::Requirement)  ? version                  :
+              Gem::Requirement.create(version)
+
+            # Get a list of versions.
+            versions = Dir.glob('*')
+
+            # Select highest matching version.
+            version_path = versions.
+              select {|version_path| requirement.satisfied_by?(Gem::Version.new(version_path)) }.
+              sort.last.to_s
+
+            puts "Selected #{version_path} out of #{versions.to_json}.\n"
+              
+            base_url =  @options[:base_url] ? "#{@options[:base_url]}/#{name}/#{version_path}" : nil
+            @cache[cache_key] = get_component_by_dir(File.join(name_dir, version_path), base_url)
+          end
+        end
+      end
+
+      def get_component_by_dir(dir, base_url = nil)
+        Dir.chdir(dir) do
+          fail "No component in #{dir}" unless File.exist?('diversity.json')
+
+          spec    = File.read('diversity.json')
+          options = {
+            skip_validation: @options[:skip_validation],
+            base_url:        base_url,
+            base_path:       dir,
+          }
+          
+          Component.new(self, spec, options)
+        end
       end
 
       # Returns installed components matching the name and version of parameters
@@ -73,7 +119,7 @@ module Diversity
         Dir.chdir(@options[:base_path]) do
           self.class.installed_components[@options[:base_path]] =
             Dir.glob(GLOB).reduce([]) do |res, cfg|
-
+            
             begin
               src = File.expand_path(cfg)
               spec = File.read(src)

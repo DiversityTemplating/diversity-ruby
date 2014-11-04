@@ -52,6 +52,9 @@ module Diversity
       html
     end
 
+
+    private
+
     # Expands the component_settings, replacing components with HTML and adding components to set
     #
     # @return expanded_settings
@@ -123,9 +126,6 @@ module Diversity
       expanded_settings
     end
 
-
-    private
-
     # Returns the default rendering context for the current engine
     #
     # @return [Hash]
@@ -155,12 +155,12 @@ module Diversity
     # @param [Array] An array of Diversity::Component objects
     # @return [nil]
     def add_component(component)
-      components = @options[:registry].expand_component_list(component)
+      #components = @options[:registry].expand_component_list(component)
 
-      components.each do |component|
+      #components.each do |component|
         settings.add_component(component)
-      end
-      nil
+      #end
+      #nil
     end
 
     class << self

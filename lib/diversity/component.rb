@@ -161,6 +161,9 @@ module Diversity
     end
 
     def scripts
+      fail "Can't generate list of script-URL:s with no base_url from registry." unless
+        @options[:base_url]
+
       @configuration.scripts.map do |script|
         if remote?(script)
           script
@@ -171,6 +174,9 @@ module Diversity
     end
 
     def styles
+      fail "Can't generate list of style-URL:s with no base_url from registry." unless
+        @options[:base_url]
+
       @configuration.styles.map do |style|
         if remote?(style)
           style
