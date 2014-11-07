@@ -1,6 +1,6 @@
-require 'fileutils'
 require 'addressable/uri'
-require 'cache'
+require 'fileutils'
+require 'moneta'
 require_relative '../common.rb'
 require_relative '../component.rb'
 require_relative '../exception.rb'
@@ -14,7 +14,7 @@ module Diversity
         base_path: nil,
         base_url:  nil,
         mode:      :default,
-        cache_options: { expiration: 60, max_num: 100 },
+        cache_options: { expires: 60, max_count: 100 },
         skip_validation: false
       }
 
@@ -29,7 +29,10 @@ module Diversity
         @options = DEFAULT_OPTIONS.merge(options)
         @options[:base_path] = File.expand_path(@options[:base_path])
         fileutils.mkdir_p(@options[:base_path]) unless File.exist?(@options[:base_path])
-        @cache = Cache.new(@options[:cache_options])
+        @cache = Moneta.build do
+          use :Expires, expires: @options[:cache_options][:expires]
+          adapter :LRUHash, max_count: @options[:cache_options][:max_count]
+        end
       end
 
       def base_path
@@ -38,7 +41,7 @@ module Diversity
 
       def get_component(name, version = nil)
         cache_key = "component:#{name}:#{version}"
-        return @cache[cache_key] if @cache.has_key?(cache_key)
+        return @cache[cache_key] if @cache.key?(cache_key)
 
         name_dir = File.join(@options[:base_path], name)
 
@@ -65,7 +68,7 @@ module Diversity
               sort.last.to_s
 
             puts "Selected #{version_path} out of #{versions.to_json}.\n"
-              
+
             base_url =  @options[:base_url] ? "#{@options[:base_url]}/#{name}/#{version_path}" : nil
             @cache[cache_key] = get_component_by_dir(File.join(name_dir, version_path), base_url)
           end
@@ -82,7 +85,7 @@ module Diversity
             base_url:        base_url,
             base_path:       dir,
           }
-          
+
           Component.new(self, spec, options)
         end
       end
@@ -119,7 +122,7 @@ module Diversity
         Dir.chdir(@options[:base_path]) do
           self.class.installed_components[@options[:base_path]] =
             Dir.glob(GLOB).reduce([]) do |res, cfg|
-            
+
             begin
               src = File.expand_path(cfg)
               spec = File.read(src)
