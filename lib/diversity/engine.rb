@@ -76,7 +76,7 @@ module Diversity
             #fail "No properties/#{key} at /#{path.join('/')} in " + JSON.pretty_generate(schema)
             puts " FAIL: No properties/#{key} at /#{path.join('/')} in " +
               JSON.pretty_generate(schema)
-            return
+            return component_settings
           end
 
           if sub_schema.has_key?('format') and sub_schema['format'] == 'diversity'
