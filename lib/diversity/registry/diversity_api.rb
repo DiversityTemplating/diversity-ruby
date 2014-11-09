@@ -13,15 +13,26 @@ module Diversity
       # Default options
       DEFAULT_OPTIONS = {
         backend_url: nil,
-        cache_options: { expires: 3600, max_count: 100 },
+        cache_options: {
+          adapter: :LRUHash,
+          adapter_options: { max_count: 100 },
+          expires: 3600,
+          transformer: {
+            key: [:sha256],
+            value: [:marshal]
+          }
+        },
         skip_validation: false
       }
 
       def initialize(options = {})
         @options = DEFAULT_OPTIONS.merge(options)
         @cache = Moneta.build do
-          use :Expires, expires: @options[:cache_options][:expires]
-          adapter :LRUHash, max_count: @options[:cache_options][:max_count]
+          use     :Expires, expires: @options[:cache_options][:expires]
+          use     :Transformer, key: @options[:cache_options][:transformer][:key],
+                                value: @options[:cache_options][:transformer][:value]
+          adapter @options[:cache_options][:adapter],
+                  @options[:cache_options][:adapter_options]
         end
         fail 'Invalid backend URL!' unless ping_ok
       end

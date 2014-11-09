@@ -10,6 +10,7 @@ module Diversity
     # Create a new cache
     @cache = Moneta.build do
       use :Expires, expires: 3600
+      use :Transformer, key: [:sha256], value: [:marshal]
       adapter :LRUHash, max_count: 100
     end
 

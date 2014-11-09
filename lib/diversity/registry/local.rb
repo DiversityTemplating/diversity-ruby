@@ -14,7 +14,15 @@ module Diversity
         base_path: nil,
         base_url:  nil,
         mode:      :default,
-        cache_options: { expires: 60, max_count: 100 },
+        cache_options: {
+          adapter: :LRUHash,
+          adapter_options: { max_count: 100 },
+          expires: 60,
+          transformer: {
+            key: [:sha256],
+            value: [:marshal]
+          }
+        },
         skip_validation: false
       }
 
@@ -30,8 +38,11 @@ module Diversity
         @options[:base_path] = File.expand_path(@options[:base_path])
         fileutils.mkdir_p(@options[:base_path]) unless File.exist?(@options[:base_path])
         @cache = Moneta.build do
-          use :Expires, expires: @options[:cache_options][:expires]
-          adapter :LRUHash, max_count: @options[:cache_options][:max_count]
+          use     :Expires, expires: @options[:cache_options][:expires]
+          use     :Transformer, key: @options[:cache_options][:transformer][:key],
+                                value: @options[:cache_options][:transformer][:value]
+          adapter @options[:cache_options][:adapter],
+                  @options[:cache_options][:adapter_options]
         end
       end
 
