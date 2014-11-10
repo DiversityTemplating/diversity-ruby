@@ -1,6 +1,5 @@
 require 'addressable/uri'
 require 'fileutils'
-require 'moneta'
 require_relative '../common.rb'
 require_relative '../component.rb'
 require_relative '../exception.rb'
@@ -15,13 +14,13 @@ module Diversity
         base_url:  nil,
         mode:      :default,
         cache_options: {
-          adapter: :LRUHash,
-          adapter_options: { max_count: 100 },
-          expires: 60,
+          adapter: :Memory,
+          adapter_options: {},
           transformer: {
-            key: [:sha256],
-            value: [:marshal]
-          }
+            key: [],
+            value: []
+          },
+          ttl: 60
         },
         skip_validation: false
       }
@@ -37,13 +36,7 @@ module Diversity
         @options = DEFAULT_OPTIONS.merge(options)
         @options[:base_path] = File.expand_path(@options[:base_path])
         fileutils.mkdir_p(@options[:base_path]) unless File.exist?(@options[:base_path])
-        @cache = Moneta.build do
-          use     :Expires, expires: @options[:cache_options][:expires]
-          use     :Transformer, key: @options[:cache_options][:transformer][:key],
-                                value: @options[:cache_options][:transformer][:value]
-          adapter @options[:cache_options][:adapter],
-                  @options[:cache_options][:adapter_options]
-        end
+        init_cache(@options[:cache_options])
       end
 
       def base_path

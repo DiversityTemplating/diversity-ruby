@@ -1,5 +1,4 @@
 require 'json'
-require 'moneta'
 require 'unirest'
 
 module Diversity
@@ -14,26 +13,20 @@ module Diversity
       DEFAULT_OPTIONS = {
         backend_url: nil,
         cache_options: {
-          adapter: :LRUHash,
-          adapter_options: { max_count: 100 },
-          expires: 3600,
+          adapter: :Memory,
+          adapter_options: {},
           transformer: {
-            key: [:sha256],
-            value: [:marshal]
-          }
+            key: [],
+            value: []
+          },
+          ttl: 3600
         },
         skip_validation: false
       }
 
       def initialize(options = {})
         @options = DEFAULT_OPTIONS.merge(options)
-        @cache = Moneta.build do
-          use     :Expires, expires: @options[:cache_options][:expires]
-          use     :Transformer, key: @options[:cache_options][:transformer][:key],
-                                value: @options[:cache_options][:transformer][:value]
-          adapter @options[:cache_options][:adapter],
-                  @options[:cache_options][:adapter_options]
-        end
+        init_cache(@options[:cache_options])
         fail 'Invalid backend URL!' unless ping_ok
       end
 

@@ -27,6 +27,33 @@ module Diversity
         # @todo Load dependencies specified as URLs?
       end
 
+      # Init the cache associated with the current registry
+      #
+      # @param [Hash] options Cache options
+      # @return [nil]
+      def init_cache(options)
+        require 'moneta'
+        expires = options.key?(:ttl) ? options[:ttl] : nil
+        transformer_options = []
+        if options.key?(:transformer)
+          if options[:transformer].key?(:key) &&
+             !options[:transformer][:key].empty?
+            transformer_options[:key] = options[:transformer][:key]
+          end
+          if options[:transformer].key?(:value) &&
+             !options[:transformer][:value].empty?
+            transformer_options[:value] = options[:transformer][:value]
+          end
+        end
+        @cache = Moneta.build do
+          use     :Expires, expires: expires if expires
+          use     :Transformer, transformer_options unless
+            transformer_options.empty?
+          adapter options[:adapter], options[:adapter_options]
+        end
+        nil
+      end
+
       # Checks whether a component with a specified version is installed.
       #
       # @param [String] name Component name
