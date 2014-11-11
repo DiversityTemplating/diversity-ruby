@@ -63,17 +63,13 @@ module Diversity
             requirement =
               (version.nil? or version == '*') ? Gem::Requirement.default :
               version.is_a?(Gem::Requirement)  ? version                  :
-              Gem::Requirement.create(version)
-
-            # Get a list of versions.
-            versions = Dir.glob('*')
+              Gem::Requirement.create(normalize_requirement(version))
 
             # Select highest matching version.
-            version_path = versions.
-              select {|version_path| requirement.satisfied_by?(Gem::Version.new(version_path)) }.
+            version_path =
+              Dir.glob('*').map { |version_path| Gem::Version.new(version_path) }.
+              select {|version_obj| requirement.satisfied_by?(version_obj) }.
               sort.last.to_s
-
-            puts "Selected #{version_path} out of #{versions.to_json}.\n"
 
             base_url =  @options[:base_url] ? "#{@options[:base_url]}/#{name}/#{version_path}" : nil
             @cache[cache_key] = get_component_by_dir(File.join(name_dir, version_path), base_url)
