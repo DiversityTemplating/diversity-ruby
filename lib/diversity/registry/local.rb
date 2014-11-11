@@ -83,7 +83,7 @@ module Diversity
             base_path:       dir,
           }
           
-          Component.new(self, spec, options)
+          Component.new(spec, options)
         end
       end
 
@@ -126,7 +126,7 @@ module Diversity
               #src = File.expand_path(cfg)
 
               component = Component.new(
-                self, spec, {
+                spec, {
                   base_url: @options[:base_url] ?
                     @options[:base_url] + '/' + File.dirname(cfg) : nil,
                   base_path: File.dirname(src),
@@ -151,7 +151,7 @@ module Diversity
       # @param [bool] force Whether component installation should be forced or not
       # @return [Diversity::Component]
       def install_component(res, force = false)
-        comp = Component.new(self, res) # No base_uri here
+        comp = Component.new(res) # No base_uri here
         name = comp.name
         version = comp.version
         # If component is already installed, return locally

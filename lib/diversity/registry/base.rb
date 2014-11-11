@@ -54,7 +54,7 @@ module Diversity
           #base_uri unknown
         end
 
-        Component.new(self, src, { base_url: base_url })
+        Component.new(src, { base_url: base_url })
       end
     end
   end

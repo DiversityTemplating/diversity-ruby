@@ -2,7 +2,6 @@ module Diversity
   class Engine
     # A simple wrapper for the context used when rendering
     class Settings
-      include Common
 
       def initialize(registry)
         @component_set = Diversity::ComponentSet.new(registry)
@@ -27,10 +26,15 @@ module Diversity
           if comp.i18n &&
              comp.i18n.key?(langcode) &&
              comp.i18n[langcode].key?('view') # i18n will be changed to l10n later
-            l10n << {
-              'component' => comp.name,
-              'messages'  => safe_load(comp.i18n[langcode]['view'])
-            }
+            if (data = comp.get_asset(comp.i18n[langcode]['view']))
+              l10n << {
+                'component' => comp.name,
+                'messages'  => data
+              }
+            else
+              puts "Failed to load #{comp.i18n[langcode]['view']}"
+              l10n
+            end
           else
             l10n
           end

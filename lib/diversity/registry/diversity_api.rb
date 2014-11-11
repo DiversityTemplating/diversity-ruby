@@ -40,7 +40,6 @@ module Diversity
 
               component_objs <<
                 Component.new(
-                  self,
                   spec,
                   { base_url: base_url, skip_validation: @options[:skip_validation] }
                 )
@@ -77,7 +76,7 @@ module Diversity
 
         @cache[cache_key] =
           Component.new(
-            self, spec,
+            spec,
             { base_url: base_url, skip_validation: @options[:skip_validation] }
           )
       end
