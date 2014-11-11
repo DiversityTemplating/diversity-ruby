@@ -12,8 +12,6 @@ require_relative 'common'
 require_relative 'exception'
 require_relative 'json_schema_cache'
 
-# https://raw.githubusercontent.com/DiversityTemplating/Diversity/master/validation/diversity.schema.json
-
 module Diversity
   # Class representing an external component
   class Component
@@ -56,9 +54,6 @@ module Diversity
     # 
     # @return [Diversity::Component]
     def initialize(registry, spec, options)
-      # fail Diversity::Exception,
-      #      "Failed to load component configuration from #{resource}",
-      #      caller unless (data = safe_load(resource))
       @configuration = Configuration.new
       @options = DEFAULT_OPTIONS.merge(options)
 
@@ -88,34 +83,54 @@ module Diversity
     def resolve_context(backend_url, context = {})
       #client = JsonRpcClient.new(backend_url.to_s, asynchronous_calls: false)
       resolved_context = {}
-      context.each_pair do |key, settings|
+
+      # Check the components context requirements
+      @configuration.context.each_pair do |key, settings|
         unless settings.is_a?(Hash)
           resolved_context[key] = settings
           next
         end
-        # Round 1 - Resolve context
-        new_settings = settings.dup
-        new_settings['params'].map! do |param|
-          if param.is_a?(String) && (matches = /(\{\{(.+)\}\})/.match(param))
-            # Param contains a Mustache template, try to find the value in the context
-            normalized = matches[2].strip.to_sym
-            fail Diversity::Exception,
-                 "No such variable #{normalized}",
-                 caller unless context.key?(normalized)
-            param.gsub!(matches[0], context[normalized.to_sym].to_s)
-          end
-          param
+
+        unless settings.has_key?('type')
+          puts "#{self} has context with no type: #{key}"
+          resolved_context[key] = settings
+          next
         end
-        # # Round 2 - Query API
-        # result = nil
-        # EventMachine.run do
-        #   fiber = Fiber.new do
-        #     result = client._call_sync(new_settings['method'], new_settings['params'])
-        #     EventMachine.stop
-        #   end
-        #   fiber.resume
-        # end
-        resolved_context[key] = result
+
+        case settings['type']
+        when 'jsonrpc'
+          # Round 1 - Resolve context
+          new_settings = settings.dup
+          new_settings['params'].map! do |param|
+            if param.is_a?(String) && (matches = /(\{\{(.+)\}\})/.match(param))
+              # Param contains a Mustache template, try to find the value in the context
+              normalized = matches[2].strip.to_sym
+              fail Diversity::Exception,
+              "No such variable #{normalized}",
+              caller unless context.key?(normalized)
+              param.gsub!(matches[0], context[normalized.to_sym].to_s)
+            end
+            param
+          end
+          # Round 2 - Query API
+          result = nil
+          EventMachine.run do
+            fiber = Fiber.new do
+              result = client._call_sync(new_settings['method'], new_settings['params'])
+              EventMachine.stop
+            end
+            fiber.resume
+          end
+          resolved_context[key] = result
+        when 'prerequisite'
+          fail Diversity::Exception, "#{self} needs #{key} in context as prerequisite." unless
+            context.has_key?(key)
+          
+          resolved_context[key] = context[key]
+        else
+          fail Diversity::Exception,
+            "#{self} has context #{key} of unhandled type: #{settings['type']}"
+        end
       end
       resolved_context
     end
@@ -184,6 +199,10 @@ module Diversity
           @options[:base_url] + '/' + style
         end
       end
+    end
+
+    def to_s
+      "#{@configuration.name}:#{@configuration.version}"
     end
 
     private
