@@ -71,6 +71,16 @@ module Diversity
           select {|version_obj| requirement.satisfied_by?(version_obj) }.
           sort.last.to_s
 
+        if version_path == ''
+          # We don't fail on components we don't have, but here we have the component but not the
+          # version...
+          puts "No match for version \"#{version}\" of #{name}.  We have #{versions.inspect}?"
+
+          # Let's use the latest version we have as a failsafe.  Could get bad, but not worse than
+          # no component at all.
+          version_path = versions.sort.last.to_s
+        end
+
         base_url = "#{@options[:backend_url]}components/#{name}/#{version_path}/files"
         spec = safe_load("#{base_url}/diversity.json")
         puts "Got spec from #{name}:#{version_path} on #{base_url}:\n#{spec}"
