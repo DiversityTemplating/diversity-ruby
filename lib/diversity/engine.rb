@@ -17,7 +17,7 @@ module Diversity
     }
 
     def initialize(options = {})
-      @options = DEFAULT_OPTIONS.merge(options)
+      @options = DEFAULT_OPTIONS.keep_merge(options)
       @debug_level = 0
 
       # Ensure that we have a valid registry to work against

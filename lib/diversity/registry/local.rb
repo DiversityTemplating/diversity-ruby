@@ -22,7 +22,7 @@ module Diversity
             key: [],
             value: []
           },
-          ttl: 60
+          ttl: 3600
         },
         skip_validation: false
       }
@@ -35,7 +35,9 @@ module Diversity
       # @param [Hash] options
       # @return Diversity::Registry::Local
       def initialize(options = {})
-        @options = DEFAULT_OPTIONS.merge(options)
+p DEFAULT_OPTIONS
+        @options = DEFAULT_OPTIONS.keep_merge(options)
+p @options
         @options[:base_path] = File.expand_path(@options[:base_path])
         fileutils.mkdir_p(@options[:base_path]) unless File.exist?(@options[:base_path])
         init_cache(@options[:cache_options])
@@ -161,12 +163,8 @@ module Diversity
       #
       # @todo Fixme or remove?  install_component is broken right now…
       def install_component(res, force = false)
-<<<<<<< HEAD
         # @todo Get the spec here.
-        comp = Component.new(self, res) # No base_uri here
-=======
         comp = Component.new(res) # No base_uri here
->>>>>>> 67830af1ba776d154074643fd02306f7c63ef58b
         name = comp.name
         version = comp.version
         # If component is already installed, return locally

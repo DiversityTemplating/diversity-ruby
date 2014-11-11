@@ -25,7 +25,7 @@ module Diversity
       }
 
       def initialize(options = {})
-        @options = DEFAULT_OPTIONS.merge(options)
+        @options = DEFAULT_OPTIONS.keep_merge(options)
         init_cache(@options[:cache_options])
         fail 'Invalid backend URL!' unless ping_ok
       end

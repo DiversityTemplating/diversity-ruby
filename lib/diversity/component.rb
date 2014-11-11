@@ -52,7 +52,7 @@ module Diversity
     # @return [Diversity::Component]
     def initialize(spec, options)
       @configuration = Configuration.new
-      @options = DEFAULT_OPTIONS.merge(options)
+      @options = DEFAULT_OPTIONS.keep_merge(options)
 
       schema = JsonSchemaCache[MASTER_COMPONENT_SCHEMA]
       begin
