@@ -207,7 +207,7 @@ module Diversity
         end
       mustache_settings['lang'] = lambda do |text|
         # TODO: Fix language until we decide how to set it
-        text.gsub(/lang/, context['language'] || 'sv')
+        text.gsub(/lang/, context[:language] || 'sv')
       end
       # Return rendered data
       Mustache.render(template_mustache, mustache_settings)
