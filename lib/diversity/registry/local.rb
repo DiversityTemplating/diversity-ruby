@@ -91,8 +91,7 @@ module Diversity
             base_url:        base_url,
             base_path:       dir,
           }
-
-          Component.new(self, spec, options)
+          Component.new(spec, options)
         end
       end
 
@@ -135,7 +134,7 @@ module Diversity
               #src = File.expand_path(cfg)
 
               component = Component.new(
-                self, spec, {
+                spec, {
                   base_url: @options[:base_url] ?
                     @options[:base_url] + '/' + File.dirname(cfg) : nil,
                   base_path: File.dirname(src),
@@ -162,8 +161,12 @@ module Diversity
       #
       # @todo Fixme or remove?  install_component is broken right now…
       def install_component(res, force = false)
+<<<<<<< HEAD
         # @todo Get the spec here.
         comp = Component.new(self, res) # No base_uri here
+=======
+        comp = Component.new(res) # No base_uri here
+>>>>>>> 67830af1ba776d154074643fd02306f7c63ef58b
         name = comp.name
         version = comp.version
         # If component is already installed, return locally

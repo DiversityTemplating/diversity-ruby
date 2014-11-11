@@ -44,16 +44,13 @@ module Diversity
 
     # Creates a new component
     #
-    # The factoring Registry will be responsible for getting dependencies.
-    #
-    # @param [Diversity::Registry::Base]  The registry factoring this component.
     # @param [String] spec     The diversity.json of the component (as JSON string).
     # @param [Hash]   options  Options: base_url, skip_validation
     # 
     # @raise [Diversity::Exception] if the resource cannot be loaded
     # 
     # @return [Diversity::Component]
-    def initialize(registry, spec, options)
+    def initialize(spec, options)
       @configuration = Configuration.new
       @options = DEFAULT_OPTIONS.merge(options)
 
@@ -164,14 +161,19 @@ module Diversity
       @checksum == other_component.checksum
     end
 
+    def get_asset(path)
+      if (@options[:base_path])
+        full_path = File.join(@options[:base_path], path)
+      else
+        full_path = "#{@options[:base_url]}/#{path}"
+        puts "Attempting to load #{full_path}"
+      end
+      safe_load(full_path)
+    end
+
     def template_mustache
       templates.map do |template|
-        if (@options[:base_path])
-          File.read(File.join(@options[:base_path], template))
-        else
-          puts "Attempting to load #{@options[:base_url]}/#{template}"
-          safe_load("#{@options[:base_url]}/#{template}")
-        end
+        get_asset(template)
       end.join('')
     end
 

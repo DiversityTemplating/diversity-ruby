@@ -21,6 +21,26 @@ module Diversity
         end
       end
 
+      def l10n(langcode)
+        @component_set.to_a.inject([]) do |l10n, comp|
+          if comp.i18n &&
+             comp.i18n.key?(langcode) &&
+             comp.i18n[langcode].key?('view') # i18n will be changed to l10n later
+            if (data = comp.get_asset(comp.i18n[langcode]['view']))
+              l10n << {
+                'component' => comp.name,
+                'messages'  => data
+              }
+            else
+              puts "Failed to load #{comp.i18n[langcode]['view']}"
+              l10n
+            end
+          else
+            l10n
+          end
+        end
+      end
+
       def scripts
         @component_set.to_a.map { |comp| comp.scripts }.flatten
       end
