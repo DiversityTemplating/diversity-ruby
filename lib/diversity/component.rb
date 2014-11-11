@@ -129,7 +129,7 @@ module Diversity
             "#{self} has context #{key} of unhandled type: #{settings['type']}"
         end
       end
-      resolved_context
+      context.keep_merge(resolved_context)
     end
 
     def <(other_component)
@@ -166,7 +166,6 @@ module Diversity
         full_path = File.join(@options[:base_path], path)
       else
         full_path = "#{@options[:base_url]}/#{path}"
-        puts "Attempting to load #{full_path}"
       end
       safe_load(full_path)
     end
