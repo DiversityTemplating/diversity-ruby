@@ -1,4 +1,3 @@
-require_relative 'diversity/core_extensions.rb'
 require_relative 'diversity/common.rb'
 require_relative 'diversity/component.rb'
 require_relative 'diversity/component_set.rb'

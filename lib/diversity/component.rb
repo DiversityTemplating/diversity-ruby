@@ -19,7 +19,7 @@ module Diversity
 
     MASTER_COMPONENT_SCHEMA =
       'https://raw.githubusercontent.com/DiversityTemplating/' \
-      'Diversity/master/validation/diversity.schema.json'
+      'Diversity/new-semver-pattern/validation/diversity.schema.json'
 
     attr_reader :checksum, :raw
 
@@ -179,26 +179,14 @@ module Diversity
       fail "Can't generate list of script-URL:s with no base_url from registry." unless
         @options[:base_url]
 
-      @configuration.scripts.map do |script|
-        if remote?(script)
-          script
-        else
-          @options[:base_url] + '/' + script
-        end
-      end
+      expand_relative_paths(@options[:base_url], @configuration.scripts)
     end
 
     def styles
       fail "Can't generate list of style-URL:s with no base_url from registry." unless
         @options[:base_url]
 
-      @configuration.styles.map do |style|
-        if remote?(style)
-          style
-        else
-          @options[:base_url] + '/' + style
-        end
-      end
+      expand_relative_paths(@options[:base_url], @configuration.styles)
     end
 
     def to_s

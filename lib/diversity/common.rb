@@ -24,7 +24,7 @@ module Diversity
       if file_list.respond_to?(:each)
         file_list.map do |file|
           res = file.to_s
-          remote?(res) ? res : File.join(base_path, res)
+          remote?(res) ? res : "#{base_path}/#{res}"
         end
       else
         f = file_list.to_s
@@ -97,16 +97,6 @@ module Diversity
       rescue JSON::ParserError
         raise Diversity::Exception, "Failed to parse schema from #{resource}", caller
       end
-    end
-
-    # Gets the "parent" of an URL
-    #
-    # @param [String] url_string
-    # @return [String]
-    def uri_base_path(url_string)
-      url = Addressable::URI.parse(url_string)
-      url.path = File.dirname(url.path)
-      url.to_s
     end
   end
 end

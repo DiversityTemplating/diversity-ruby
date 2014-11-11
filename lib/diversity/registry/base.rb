@@ -37,25 +37,6 @@ module Diversity
       def installed?(name, version = nil)
         !get_matching_components(name, version).empty?
       end
-
-      # Loads a remote component
-      #
-      # @return [Component]
-      def load_component(res)
-
-        if remote?(resource)
-          src = Addressable::URI.parse(resource).to_s
-          base_uri = uri_base_path(src)
-        else
-          fail "Please don't end up here."
-
-          src = File.read(resource)
-          base_path = File.dirname(src)
-          #base_uri unknown
-        end
-
-        Component.new(self, src, { base_url: base_url })
-      end
     end
   end
 end

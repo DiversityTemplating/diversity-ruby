@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 require 'fileutils'
 require 'addressable/uri'
 require 'cache'
@@ -130,7 +131,7 @@ module Diversity
                   base_url: @options[:base_url] ?
                     @options[:base_url] + '/' + File.dirname(cfg) : nil,
                   base_path: File.dirname(src),
-                  #skip_validation: true,
+                  skip_validation: @options[:skip_validation],
                 }
               )
               res << component if res
@@ -147,10 +148,13 @@ module Diversity
       # Installs a component locally. If the component is already installed, it will not be
       # installed again unless the force flag is set to true
       #
-      # @param [String] res components resource. Can be a path in the file system or an URL
+      # @param [String] res components resource, base_url or base_path.
       # @param [bool] force Whether component installation should be forced or not
       # @return [Diversity::Component]
+      #
+      # @todo Fixme or remove?  install_component is broken right now…
       def install_component(res, force = false)
+        # @todo Get the spec here.
         comp = Component.new(self, res) # No base_uri here
         name = comp.name
         version = comp.version
@@ -158,8 +162,8 @@ module Diversity
         # installed component instead (unless forced)
         return get_component(name, version) unless
           force || !installed?(name, version)
-        # TODO: Make sure comp.name is a usable name
-        res_path = remote?(res) ? uri_base_path(res) : File.dirname(File.expand_path(res))
+
+        # @todo Make sure comp.name is a usable name
         install_path = File.join(@options[:base_path], name, version.to_s)
         fileutils.mkdir_p(install_path)
         config_path = File.join(install_path, 'diversity.json')
@@ -167,7 +171,7 @@ module Diversity
         copy_component_files(comp, res_path, install_path)
         # Invalidate cache (unless we are faking the installation)
         self.class.installed_components.delete(@options[:base_path]) unless noop?
-        noop? ? comp : load_component(config_path)
+        get_component(name, version)
       end
 
       def mode

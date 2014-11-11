@@ -20,18 +20,11 @@ module Diversity
 
       # Add depencencies
       component.dependencies.each_pair do |name, req|
-        if req.is_a?(Addressable::URI) || req.is_a?(URI)
-          dependency = registry.load_component(req.to_s)
-        elsif req.is_a?(Gem::Requirement)
-          dependency = registry.get_component(name, req)
-        else
-          fail Diversity::Exception,
-          "Invalid dependency #{name} #{req}", caller
-        end
+        dependency = registry.get_component(name, req)
+
         fail Diversity::Exception,
-        "Failed to load dependency #{name} [#{req}] " \
-        "requested by #{component.name} "\
-        "#{component.version}.", caller unless dependency
+          "Failed to load dependency #{name}:#{req} " \
+          "requested by #{component}.", caller unless dependency
         self << dependency
       end
 
