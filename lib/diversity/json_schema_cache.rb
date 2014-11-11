@@ -1,4 +1,4 @@
-require 'cache'
+require 'moneta'
 require_relative 'json_schema'
 
 module Diversity
@@ -8,16 +8,18 @@ module Diversity
     extend Common
 
     # Create a new cache
-    # Max number of cached items: 100
-    # Expiration time: 3600 seconds (1 hour)
-    @cache = Cache.new({ expiration: 3600, max_num: 100 })
+    @cache = Moneta.build do
+      use :Expires, expires: 3600
+      use :Transformer, key: [:to_s], value: [:marshal]
+      adapter :LRUHash, max_count: 100
+    end
 
     # Returns the JSON schema denoted by key
     #
     # @param [String] key
     # @return Diversity::JsonSchema
     def self.[](key)
-      return @cache[key] if @cache.cached?(key)
+      return @cache[key] if @cache.key?(key)
       @cache[key] = load_json(key, JsonSchema)
       @cache[key]
     end
@@ -27,7 +29,7 @@ module Diversity
     # @param [String] key
     # @return [Object]
     def self.purge(key = nil)
-      key ? @cache.invalidate(key) : @cache.invalidate_all
+      key ? @cache.delete(key) : @cache.clear
     end
   end
 end

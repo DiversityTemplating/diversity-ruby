@@ -1,4 +1,3 @@
-require 'cache'
 require 'json'
 require 'unirest'
 
@@ -13,13 +12,21 @@ module Diversity
       # Default options
       DEFAULT_OPTIONS = {
         backend_url: nil,
-        cache_options: { expiration: 3600, max_num: 100 },
+        cache_options: {
+          adapter: :Memory,
+          adapter_options: {},
+          transformer: {
+            key: [],
+            value: []
+          },
+          ttl: 3600
+        },
         skip_validation: false
       }
 
       def initialize(options = {})
         @options = DEFAULT_OPTIONS.merge(options)
-        @cache = Cache.new(@options[:cache_options])
+        init_cache(@options[:cache_options])
         fail 'Invalid backend URL!' unless ping_ok
       end
 
@@ -54,7 +61,7 @@ module Diversity
 
       def get_component(name, version = nil)
         cache_key = "component:#{name}:#{version}"
-        return @cache[cache_key] if @cache.has_key?(cache_key)
+        return @cache[cache_key] if @cache.key?(cache_key)
 
         requirement =
           (version.nil? or version == '*') ? Gem::Requirement.default :
@@ -93,7 +100,7 @@ module Diversity
       end
 
       def cache_contains?(url)
-        @cache.cached?(url)
+        @cache.key?(url)
       end
 
       # Purges the cache for a specific URL
@@ -101,18 +108,7 @@ module Diversity
       # @param [String]
       # @return [Object]
       def cache_purge(url = nil)
-        url ? @cache.invalidate(url) : @cache.invalidate_all
-      end
-
-      # Return statistics about cached objects
-      def cache_stats
-        cache_size, num_items, num_hits, num_misses  = @cache.statistics
-        {
-          cache_size: cache_size,
-          num_items: num_items,
-          num_hits: num_hits,
-          num_misses: num_misses
-        }
+        url ? @cache.delete(url) : @cache.clear
       end
 
       private
@@ -126,7 +122,7 @@ module Diversity
         path.each do |part|
           url = File.join(url, part)
         end
-        return @cache[url] if @cache.cached?(url)
+        return @cache[url] if @cache.key?(url)
         response = Unirest.get(url)
         fail "Error when calling API on #{url}: #{response.inspect}" unless response.code == 200
         fail 'Invalid content type' unless response.headers[:content_type] == 'application/json'
