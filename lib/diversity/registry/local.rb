@@ -35,9 +35,7 @@ module Diversity
       # @param [Hash] options
       # @return Diversity::Registry::Local
       def initialize(options = {})
-p DEFAULT_OPTIONS
         @options = DEFAULT_OPTIONS.keep_merge(options)
-p @options
         @options[:base_path] = File.expand_path(@options[:base_path])
         fileutils.mkdir_p(@options[:base_path]) unless File.exist?(@options[:base_path])
         init_cache(@options[:cache_options])
