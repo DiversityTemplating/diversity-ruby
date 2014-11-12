@@ -186,8 +186,8 @@ module Diversity
       mustache_settings['angularBootstrap'] =
         "angular.bootstrap(document,#{settings.angular.to_json});"
       mustache_settings['scripts'] = settings.scripts
-      mustache_settings['styles']  = settings.styles
-      mustache_settings['l10n']  = settings.l10n(context[:language]).to_json
+      mustache_settings['styles' ] = settings.styles
+      mustache_settings['l10n'   ] = settings.l10n(context[:language]).to_json
 
       template_mustache = component.template_mustache
       return nil unless template_mustache # No need to render empty templates
