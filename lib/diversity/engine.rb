@@ -187,7 +187,14 @@ module Diversity
         "angular.bootstrap(document,#{settings.angular.to_json});"
       mustache_settings['scripts'] = settings.scripts
       mustache_settings['styles' ] = settings.styles
-      mustache_settings['l10n'   ] = settings.l10n(context[:language]).to_json
+
+      begin
+        mustache_settings['l10n'   ] = settings.l10n(context[:language]).to_json
+      rescue Encoding::UndefinedConversionError => e
+        fail Diversity::Exception, "Bad json in l10n of #{component}: #{e}\n" +
+          "We have collected: #{settings.l10n(context[:language]).inspect}\n" +
+          "With system encoding: #{Encoding.default_external}"
+      end
 
       template_mustache = component.template_mustache
       return nil unless template_mustache # No need to render empty templates
@@ -210,6 +217,7 @@ module Diversity
         # TODO: Fix language until we decide how to set it
         text.gsub(/lang/, context[:language] || 'sv')
       end
+
       # Return rendered data
       Mustache.render(template_mustache, mustache_settings)
     end
