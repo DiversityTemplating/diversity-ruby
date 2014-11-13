@@ -34,7 +34,7 @@ module Diversity
       Struct.new(
         :name, :version, :templates, :styles, :scripts, :dependencies,
         :type, :pagetype, :context, :settings, :angular,
-        :partials, :themes, :fields, :title, :thumbnail, :price, :assets,
+        :partials, :themes, :fields, :title, :thumbnail, :price,
         :src, :i18n, :description
       )
 
@@ -62,6 +62,7 @@ module Diversity
       end
       @raw = parse_config(spec)
       @checksum = Digest::SHA1.hexdigest(dump)
+      @assets = {}
       populate(@raw)
     end
 
@@ -164,12 +165,14 @@ module Diversity
     end
 
     def get_asset(path)
+      return @assets[path] if @assets.key?(path)
+
       if (@options[:base_path])
         full_path = File.join(@options[:base_path], path)
       else
         full_path = "#{@options[:base_url]}/#{path}"
       end
-      safe_load(full_path)
+      @assets[path] = safe_load(full_path)
     end
 
     def template_mustache
@@ -263,7 +266,6 @@ module Diversity
       @configuration.description = hsh.fetch('description', nil)
       @configuration.thumbnail = hsh.fetch('thumbnail', nil)
       @configuration.price = hsh.fetch('price', nil)
-      @configuration.assets = Rake::FileList.new(hsh.fetch('assets', []))
       @configuration.i18n = hsh.fetch('i18n', {})
     end
   end
