@@ -58,7 +58,7 @@ module Diversity
       begin
         schema.validate(spec) unless @options[:skip_validation]
       rescue Diversity::Exception => err
-        puts "Bad diversity.json: #{err}\n\n"
+        puts "Bad #{self.base_url}/diversity.json - #{err}\n\n"
       end
       @raw = parse_config(spec)
       @checksum = Digest::SHA1.hexdigest(dump)
@@ -190,6 +190,10 @@ module Diversity
         @options[:base_url]
 
       expand_relative_paths(@options[:base_url], @configuration.styles)
+    end
+
+    def base_url
+      @options[:base_url]
     end
 
     def to_s

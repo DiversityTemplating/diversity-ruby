@@ -45,10 +45,10 @@ module Diversity
       debug("Validation failed:\n#{validation.join("\n")}") unless validation.empty?
 
       # Traverse the component_settings to expand sub-components
-      expanded_settings = expand_settings(schema, component_settings, context, path)
+      expanded_settings = expand_settings(schema, component_settings, context, path, component)
 
       html = render_template(component, context, expanded_settings)
-      debug("Rendered: #{html}\n")
+      #debug("Rendered: #{html}\n")
       html
     end
 
@@ -58,7 +58,7 @@ module Diversity
     # Expands the component_settings, replacing components with HTML and adding components to set
     #
     # @return expanded_settings
-    def expand_settings(schema, component_settings, context = {}, path = ())
+    def expand_settings(schema, component_settings, context = {}, path = [], last_component)
       if component_settings.is_a?(Hash)
         expanded_settings = {}
 
@@ -73,9 +73,8 @@ module Diversity
           elsif schema.has_key?('additionalProperties')
             sub_schema = schema['additionalProperties']
           else
-            #fail "No properties/#{key} at /#{path.join('/')} in " + JSON.pretty_generate(schema)
-            puts " FAIL: No properties/#{key} at /#{path.join('/')} in " +
-              JSON.pretty_generate(schema)
+            puts "FAIL: Trying to add setting #{key} to #{last_component} at /#{path.join('/')} " +
+              "in " + JSON.pretty_generate(schema)
             return component_settings
           end
 
@@ -88,7 +87,8 @@ module Diversity
             expanded_settings[key] =
               { componentHTML: render(sub_component, context, subsub_settings, sub_path) }
           else
-            expanded_settings[key] = expand_settings(sub_schema, sub_settings, context, sub_path)
+            expanded_settings[key] =
+              expand_settings(sub_schema, sub_settings, context, sub_path, last_component)
           end
         end
       elsif component_settings.is_a?(Array)
@@ -177,6 +177,8 @@ module Diversity
     # @return [String]
     def render_template(component, context, component_settings)
 
+      puts "Rendering #{component}\n"# with mustache:\n#{mustache_settings}\n\n"
+
       mustache_settings = {}
       mustache_settings[:settings]     = component_settings
       mustache_settings[:settingsJSON] =
@@ -201,6 +203,7 @@ module Diversity
 
       # Add data from API
       mustache_settings[:context] = component.resolve_context(context[:backend_url], context)
+      mustache_settings[:baseUrl] = component.base_url
 
       # Add some tasty Mustache lambdas
       mustache_settings['currency'] =
@@ -217,6 +220,8 @@ module Diversity
         # TODO: Fix language until we decide how to set it
         text.gsub(/lang/, context[:language] || 'sv')
       end
+
+      puts "Rendering #{component}\n"# with mustache:\n#{mustache_settings}\n\n"
 
       # Return rendered data
       Mustache.render(template_mustache, mustache_settings)

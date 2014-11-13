@@ -43,7 +43,7 @@ module Diversity
               base_url = "#{@options[:backend_url]}components/#{component[:name]}" +
                 "/#{version_obj.to_s}/files"
               spec = safe_load("#{base_url}/diversity.json")
-              puts "Got spec from #{component[:name]}:#{version_obj} on #{base_url}:\n#{spec}"
+              #puts "Got spec from #{component[:name]}:#{version_obj} on #{base_url}:\n#{spec}"
 
               component_objs <<
                 Component.new(
@@ -89,7 +89,7 @@ module Diversity
 
         base_url = "#{@options[:backend_url]}components/#{name}/#{version_path}/files"
         spec = safe_load("#{base_url}/diversity.json")
-        puts "Got spec from #{name}:#{version_path} on #{base_url}:\n#{spec}"
+        #puts "Got spec from #{name}:#{version_path} on #{base_url}:\n#{spec}"
 
         @cache[cache_key] =
           Component.new(
