@@ -134,6 +134,9 @@ module Diversity
       # @param [String] component_name
       # @return [Array]
       def get_installed_versions(component_name)
+        cache_key = "component-versions:#{component_name}"
+        return @cache[cache_key] if @cache.key?(cache_key)
+
         version_objs = []
         versions = call_api('components', component_name)
         versions.each do |version|
@@ -146,7 +149,7 @@ module Diversity
         version_objs.sort
         # TODO: Talk to David about default versions
         # version_objs << Gem::Version.new('0.0.1') if version_objs.empty?
-        version_objs
+        @cache[cache_key] = version_objs
       end
 
       # Checks whether the diversity API is live and kicking.

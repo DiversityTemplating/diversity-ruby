@@ -177,8 +177,6 @@ module Diversity
     # @return [String]
     def render_template(component, context, component_settings)
 
-      puts "Rendering #{component}\n"# with mustache:\n#{mustache_settings}\n\n"
-
       mustache_settings = {}
       mustache_settings[:settings]     = component_settings
       mustache_settings[:settingsJSON] =
