@@ -65,7 +65,7 @@ module Diversity
         requirement =
           (version.nil? or version == '*') ? Gem::Requirement.default :
           version.is_a?(Gem::Requirement)  ? version                  :
-          Gem::Requirement.create(version)
+          Gem::Requirement.create(normalize_requirement(version))
 
         begin
           versions = get_installed_versions(name)
