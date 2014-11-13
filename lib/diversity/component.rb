@@ -81,6 +81,8 @@ module Diversity
       #client = JsonRpcClient.new(backend_url.to_s, asynchronous_calls: false)
       resolved_context = {}
 
+      resolved_context[:baseUrl] = @options[:base_url] if @options[:base_url]
+
       # Check the components context requirements
       @configuration.context.each_pair do |key, settings|
         unless settings.is_a?(Hash)
