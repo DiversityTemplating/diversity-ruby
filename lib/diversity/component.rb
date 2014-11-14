@@ -34,7 +34,7 @@ module Diversity
       Struct.new(
         :name, :version, :templates, :styles, :scripts, :dependencies,
         :type, :pagetype, :context, :settings, :angular,
-        :partials, :themes, :fields, :title, :thumbnail, :price, :assets,
+        :partials, :themes, :fields, :title, :thumbnail, :price,
         :src, :i18n, :description
       )
 
@@ -58,10 +58,11 @@ module Diversity
       begin
         schema.validate(spec) unless @options[:skip_validation]
       rescue Diversity::Exception => err
-        puts "Bad diversity.json: #{err}\n\n"
+        puts "Bad #{self.base_url}/diversity.json - #{err}\n\n"
       end
       @raw = parse_config(spec)
       @checksum = Digest::SHA1.hexdigest(dump)
+      @assets = {}
       populate(@raw)
     end
 
@@ -80,6 +81,8 @@ module Diversity
     def resolve_context(backend_url, context = {})
       #client = JsonRpcClient.new(backend_url.to_s, asynchronous_calls: false)
       resolved_context = {}
+
+      resolved_context[:baseUrl] = @options[:base_url] if @options[:base_url]
 
       # Check the components context requirements
       @configuration.context.each_pair do |key, settings|
@@ -162,12 +165,14 @@ module Diversity
     end
 
     def get_asset(path)
+      return @assets[path] if @assets.key?(path)
+
       if (@options[:base_path])
         full_path = File.join(@options[:base_path], path)
       else
         full_path = "#{@options[:base_url]}/#{path}"
       end
-      safe_load(full_path)
+      @assets[path] = safe_load(full_path)
     end
 
     def template_mustache
@@ -188,6 +193,10 @@ module Diversity
         @options[:base_url]
 
       expand_relative_paths(@options[:base_url], @configuration.styles)
+    end
+
+    def base_url
+      @options[:base_url]
     end
 
     def to_s
@@ -257,7 +266,6 @@ module Diversity
       @configuration.description = hsh.fetch('description', nil)
       @configuration.thumbnail = hsh.fetch('thumbnail', nil)
       @configuration.price = hsh.fetch('price', nil)
-      @configuration.assets = Rake::FileList.new(hsh.fetch('assets', []))
       @configuration.i18n = hsh.fetch('i18n', {})
     end
   end

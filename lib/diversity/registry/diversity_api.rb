@@ -43,7 +43,7 @@ module Diversity
               base_url = "#{@options[:backend_url]}components/#{component[:name]}" +
                 "/#{version_obj.to_s}/files"
               spec = safe_load("#{base_url}/diversity.json")
-              puts "Got spec from #{component[:name]}:#{version_obj} on #{base_url}:\n#{spec}"
+              #puts "Got spec from #{component[:name]}:#{version_obj} on #{base_url}:\n#{spec}"
 
               component_objs <<
                 Component.new(
@@ -65,7 +65,7 @@ module Diversity
         requirement =
           (version.nil? or version == '*') ? Gem::Requirement.default :
           version.is_a?(Gem::Requirement)  ? version                  :
-          Gem::Requirement.create(version)
+          Gem::Requirement.create(normalize_requirement(version))
 
         begin
           versions = get_installed_versions(name)
@@ -89,7 +89,7 @@ module Diversity
 
         base_url = "#{@options[:backend_url]}components/#{name}/#{version_path}/files"
         spec = safe_load("#{base_url}/diversity.json")
-        puts "Got spec from #{name}:#{version_path} on #{base_url}:\n#{spec}"
+        #puts "Got spec from #{name}:#{version_path} on #{base_url}:\n#{spec}"
 
         @cache[cache_key] =
           Component.new(
@@ -134,6 +134,9 @@ module Diversity
       # @param [String] component_name
       # @return [Array]
       def get_installed_versions(component_name)
+        cache_key = "component-versions:#{component_name}"
+        return @cache[cache_key] if @cache.key?(cache_key)
+
         version_objs = []
         versions = call_api('components', component_name)
         versions.each do |version|
@@ -146,7 +149,7 @@ module Diversity
         version_objs.sort
         # TODO: Talk to David about default versions
         # version_objs << Gem::Version.new('0.0.1') if version_objs.empty?
-        version_objs
+        @cache[cache_key] = version_objs
       end
 
       # Checks whether the diversity API is live and kicking.

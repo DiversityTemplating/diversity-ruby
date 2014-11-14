@@ -81,8 +81,7 @@ module Diversity
           # so lets pretend that all data is UTF-8 regardless of what
           # the original source claims
           if res.external_encoding != Encoding::UTF_8
-            puts "Reading from #{resource} " \
-                 "(#{res.external_encoding.name}) as UTF-8"
+            #puts "Reading from #{resource} (#{res.external_encoding.name}) as UTF-8"
             res.set_encoding(Encoding::UTF_8)
           end
           data = res.read

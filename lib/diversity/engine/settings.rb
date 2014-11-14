@@ -32,7 +32,7 @@ module Diversity
                 'messages'  => data
               }
             else
-              puts "Failed to load #{comp.i18n[langcode]['view']}"
+              #puts "Failed to load #{comp.i18n[langcode]['view']}"
               l10n
             end
           else
