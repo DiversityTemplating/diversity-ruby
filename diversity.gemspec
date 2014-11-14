@@ -19,6 +19,7 @@ Gem::Specification.new do |s|
   s.add_dependency('moneta')
   s.add_dependency('mustache')
   s.add_dependency('unirest')
+  s.add_dependency('yui-compressor')
 
   s.add_development_dependency('bacon')
   s.add_development_dependency('coveralls')

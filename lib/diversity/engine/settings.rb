@@ -41,6 +41,32 @@ module Diversity
         end
       end
 
+      def minified_scripts
+        require 'yui/compressor'
+        compressor = YUI::JavaScriptCompressor.new
+        minified = ''
+        @component_set.to_a.each do |component|
+          component.scripts.each do |script|
+            next if remote?(script)
+            minified << compressor.compress(safe_load(script))
+          end
+        end
+        [minified, Digest::SHA256.hexdigest(minified)]
+      end
+
+      def minified_styles
+        require 'yui/compressor'
+        compressor = YUI::CSSCompressor.new
+        minified = ''
+        @component_set.to_a.each do |component|
+          component.styles.each do |style|
+            next if remote?(style)
+            minified << compressor.compress(safe_load(style))
+          end
+        end
+        [minified, Digest::SHA256.hexdigest(minified)]
+      end
+
       def scripts
         @component_set.to_a.map { |comp| comp.scripts }.flatten
       end
