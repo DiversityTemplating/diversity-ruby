@@ -91,29 +91,6 @@ module Diversity
         end
       end
 
-      # Returns installed components matching the name and version of parameters
-      #
-      # @param [String] name
-      # @param [nil|Gem::Requirement|Gem::Version|String] version
-      # @return [Array]
-      def get_matching_components(name, version = nil)
-        if version.nil? # All versions
-          finder = ->(comp) { comp.name == name }
-        elsif version.is_a?(Gem::Requirement)
-          finder = ->(comp) { comp.name == name && version.satisfied_by?(comp.version) }
-        elsif version.is_a?(Gem::Version)
-          finder = ->(comp) { comp.name == name && comp.version == version }
-        elsif version.is_a?(String)
-          req = Gem::Requirement.new(normalize_requirement(version))
-          finder = ->(comp) { comp.name == name && req.satisfied_by?(comp.version) }
-        else
-          fail Diversity::Exception, "Invalid version #{version}", caller
-        end
-
-        # Find all matching components and sort them by their version (in descending order)
-        installed_components.select(&finder).sort
-      end
-
       # Returns a list of locally installed components
       #
       # @return [Array] An array of Component objects
