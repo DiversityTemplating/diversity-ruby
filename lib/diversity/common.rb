@@ -10,7 +10,7 @@ module Diversity
     # @param [String] res
     # @return [true|false]
     def remote?(res)
-      %r{^(https?|ftp)://.*$} =~ res.to_s
+      %r{//.*$} =~ res.to_s
     end
 
     # Create a list of absolute paths from a base path and a list of
