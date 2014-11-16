@@ -3,6 +3,7 @@ module Diversity
   class Engine
     # A simple wrapper for the context used when rendering
     class Settings
+      include Common
       def initialize(registry)
         @component_set = Diversity::ComponentSet.new(registry)
       end
@@ -41,35 +42,50 @@ module Diversity
         end
       end
 
-      def minified_scripts(base_dir, theme_id, theme_timestamp)
+      def minified_scripts(base_dir, theme_id, theme_timestamp, include_remotes = false)
+        scripts = []
         path = File.expand_path(File.join(base_dir, 'scripts', "#{theme_id}-#{theme_timestamp.to_i}"))
-        p "Minified script path: #{path}"
-        return path if File.exist?(path)
+        minified_exist = File.exist?(path)
         require 'yui/compressor'
         compressor = YUI::JavaScriptCompressor.new
         minified = ''
         @component_set.to_a.each do |component|
           component.scripts.each do |script|
-            next if remote?(script)
-            minified << compressor.compress(safe_load(script))
+            if !remote?(script) || include_remotes
+              unless minified_exist
+                data = safe_load(script)
+                minified << compressor.compress(data) if data
+              end
+            else
+              scripts << script
+            end
           end
         end
-        create_minified_file(path, minified)
+        create_minified_file(path, minified) unless minified_exist
+        scripts.unshift(minified)
       end
 
-      def minified_styles(base_dir, theme_id, theme_timestamp)
+      def minified_styles(base_dir, theme_id, theme_timestamp, include_remotes)
+        styles = []
         path = File.expand_path(File.join(base_dir, 'scripts', "#{theme_id}-#{theme_timestamp.to_i}"))
-        return path if File.exist?(path)
+        minified_exist = File.exist=(path)
         require 'yui/compressor'
         compressor = YUI::CSSCompressor.new
         minified = ''
         @component_set.to_a.each do |component|
           component.styles.each do |style|
-            next if remote?(style)
-            minified << compressor.compress(safe_load(style))
+            if !remote?(style) || include_remotes
+              unless minified_exist
+                data = safe_load(style)
+                minified << compressor.compress(data) if data
+              end
+            else
+              styles << style
+            end
           end
         end
-        create_minified_file(path, minified)
+        create_minified_file(path, minified) unless minified_exist
+        styles.unshift(minified)
       end
 
       def scripts
