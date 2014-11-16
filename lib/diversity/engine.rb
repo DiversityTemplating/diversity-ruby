@@ -12,7 +12,7 @@ module Diversity
     # Default options for engine
     DEFAULT_OPTIONS = {
       backend_url: nil, # Optional, might be overridden in render
-      minify_base_dir = File.join(Dir.tmpdir, 'diversity', 'minified'),
+      minify_base_dir: File.join(Dir.tmpdir, 'diversity', 'minified'),
       minify_css: false,
       minify_js: false,
       registry: nil
@@ -187,7 +187,7 @@ module Diversity
       # Add angularBootstrap, scripts and styles for this level.
       mustache_settings['angularBootstrap'] =
         "angular.bootstrap(document,#{settings.angular.to_json});"
-      if (@options[:minify_js]
+      if @options[:minify_js]
         mustache_settings['scripts'] = settings.minified_scripts(
                                          @options[:minify_base_dir],
                                          context[:theme_id],
@@ -196,7 +196,7 @@ module Diversity
       else
         mustache_settings['scripts'] = settings.scripts
       end
-      if (@options[:minify_css]
+      if @options[:minify_css]
         mustache_settings['styles'] = settings.minified_styles(
                                         @options[:minify_base_dir],
                                         context[:theme_id],
