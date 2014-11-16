@@ -10,7 +10,7 @@ module Diversity
     # @param [String] res
     # @return [true|false]
     def remote?(res)
-      %r{^(https?|ftp)://.*$} =~ res.to_s
+      %r{//.*$} =~ res.to_s
     end
 
     # Create a list of absolute paths from a base path and a list of
@@ -63,8 +63,10 @@ module Diversity
         end
       end
 
-      req.gsub!(/^(\d.*)/, '=\1')
-      req.gsub!(/^(~)([^>].*)/, '\1>\2')
+      req.gsub!(/^(\d+\.\d+)\.\d+$/, '~>\1') # ^1.0.0  =>  ~>1.0
+      req.gsub!(/^(\d+)\.\d+$/, '~>\1')      # ^1.0    =>  ~>1
+      req.gsub!(/^(\d+)$/, '\1')             # ^1      =>  1
+      req.gsub!(/^(~)([^>].*)/, '\1>\2') # ??
       req
     end
 

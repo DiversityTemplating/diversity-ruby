@@ -205,23 +205,6 @@ module Diversity
 
     private
 
-    # Parses requirement strings and creates requirements that matches the requirements
-    # of the current component
-    # @param [Hash] dependencies part of diversity.json
-    # @return [Array]
-    def get_dependencies(hsh)
-      hsh.each_with_object({}) do |e, res|
-        req_string = e.last.to_s
-        # We need to handle both remote and local dependencies
-        if remote?(req_string) # Remote dependency
-          req = Addressable::URI.parse(req_string)
-        else # Local dependency
-          req = Gem::Requirement.new(normalize_requirement(req_string))
-        end
-        res[e.first.to_s] = req
-      end
-    end
-
     # Parses a component configuration file
     #
     # @param [String] data configuration data
@@ -245,7 +228,7 @@ module Diversity
       @configuration.templates = Rake::FileList.new(hsh.fetch('template', []))
       @configuration.styles = Rake::FileList.new(hsh.fetch('style', []))
       @configuration.scripts = Rake::FileList.new(hsh.fetch('script', []))
-      @configuration.dependencies = get_dependencies(hsh.fetch('dependencies', {}))
+      @configuration.dependencies = hsh.fetch('dependencies', {})
       @configuration.type = hsh.fetch('type', nil)
       @configuration.pagetype = hsh.fetch('pagetype', nil)
       @configuration.context = hsh.fetch('context', {})
