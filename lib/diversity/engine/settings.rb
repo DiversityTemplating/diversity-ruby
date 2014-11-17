@@ -42,50 +42,54 @@ module Diversity
         end
       end
 
-      def minified_scripts(base_dir, theme_id, theme_timestamp, include_remotes = false)
+      def minified_scripts(base_dir, theme_id, theme_timestamp, minify_remotes = false)
         scripts = []
         path = File.expand_path(File.join(base_dir, 'scripts', "#{theme_id}-#{theme_timestamp.to_i}"))
         minified_exist = File.exist?(path)
-        require 'yui/compressor'
-        compressor = YUI::JavaScriptCompressor.new
+        require 'uglifier'
+        uglifier = Uglifier.new
         minified = ''
         @component_set.to_a.each do |component|
           component.scripts.each do |script|
-            if !remote?(script) || include_remotes
-              unless minified_exist
-                data = safe_load(script)
-                minified << compressor.compress(data) if data
-              end
+            if !remote?(script) || minify_remotes
+              next if minified_exist
+              data = safe_load(script)
+              minified << uglifier.compile(data) if data
             else
               scripts << script
             end
           end
         end
-        create_minified_file(path, minified) unless minified_exist
-        scripts.unshift(minified)
+        unless minified_exist || minified.empty?
+          create_minified_file(path, minified)
+          scripts.unshift(path)
+        end
+        scripts
       end
 
-      def minified_styles(base_dir, theme_id, theme_timestamp, include_remotes)
+      def minified_styles(base_dir, theme_id, theme_timestamp, minify_remotes)
         styles = []
-        path = File.expand_path(File.join(base_dir, 'scripts', "#{theme_id}-#{theme_timestamp.to_i}"))
-        minified_exist = File.exist=(path)
-        require 'yui/compressor'
-        compressor = YUI::CSSCompressor.new
+        path = File.expand_path(File.join(base_dir, 'styles', "#{theme_id}-#{theme_timestamp.to_i}"))
+        minified_exist = File.exist?(path)
+        require 'cssminify'
+        compressor = CSSminify.new
         minified = ''
         @component_set.to_a.each do |component|
           component.styles.each do |style|
-            if !remote?(style) || include_remotes
-              unless minified_exist
-                data = safe_load(style)
-                minified << compressor.compress(data) if data
-              end
+            if !remote?(style) || minify_remotes
+              next if minified_exist
+              data = safe_load(style)
+              minified << compressor.compress(data) if data
             else
               styles << style
             end
           end
         end
-        create_minified_file(path, minified) unless minified_exist
-        styles.unshift(minified)
+        unless minified_exist || minified.empty?
+          create_minified_file(path, minified)
+          styles.unshift(path)
+        end
+        styles
       end
 
       def scripts
