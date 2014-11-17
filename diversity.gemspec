@@ -18,6 +18,7 @@ Gem::Specification.new do |s|
   s.add_dependency('json-schema', '=2.2.1')
   s.add_dependency('moneta')
   s.add_dependency('mustache')
+  s.add_dependency('open_uri_redirections')
   s.add_dependency('unirest')
   s.add_dependency('yui-compressor')
 
