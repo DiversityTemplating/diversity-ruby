@@ -1,5 +1,6 @@
 require 'English'
 require 'open-uri'
+require 'open_uri_redirections'
 
 # Main namespace for diversity
 module Diversity
@@ -78,7 +79,7 @@ module Diversity
     def safe_load(resource)
       data = nil
       begin
-        Kernel.open(resource) do |res|
+        Kernel.open(resource, allow_redirections: :safe) do |res|
           # We will only handle UTF-8 encoded data for now
           # so lets pretend that all data is UTF-8 regardless of what
           # the original source claims
