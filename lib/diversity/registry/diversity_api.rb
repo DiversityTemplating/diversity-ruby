@@ -1,3 +1,4 @@
+require 'addressable/uri'
 require 'json'
 require 'unirest'
 
@@ -27,7 +28,8 @@ module Diversity
       def initialize(options = {})
         @options = DEFAULT_OPTIONS.keep_merge(options)
         init_cache(@options[:cache_options])
-        fail 'Invalid backend URL!' unless ping_ok
+        fail "Invalid backend URL: #{@options[:backend_url]}!" unless
+          ping_ok
       end
 
       # Returns a list of installed components
@@ -159,9 +161,22 @@ module Diversity
       # @return [true|false]
       def ping_ok
         return false unless @options[:backend_url]
-        response = Unirest.get(@options[:backend_url])
-        response.code == 200 &&
-          response.raw_body == 'Welcome to Diversity Api'
+        # Make sure we have a real workable URL
+        begin
+          url = Addressable::URI.parse(@options[:backend_url])
+          url.path << '/' unless url.path[-1] == '/'
+          url = url.to_s
+        rescue
+          return false
+        end
+        response = Unirest.get(url)
+        if response.code == 200 &&
+           response.raw_body == 'Welcome to Diversity Api'
+          @options[:backend_url] = url
+          return true
+        else
+          return false
+        end
       end
     end
   end
