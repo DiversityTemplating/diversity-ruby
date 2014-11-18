@@ -33,21 +33,25 @@ module Diversity
       # @param [nil|Gem::Requirement|Gem::Version|String] version
       # @return [Array]
       def get_matching_components(name, version = nil)
+        cversions = installed_components.find { |cname, _| cname == name }
+        return [] if cversions.nil?
         if version.nil? # All versions
-          finder = ->(comp) { comp.name == name }
+          finder = ->(_) { true }
         elsif version.is_a?(Gem::Requirement)
-          finder = ->(comp) { comp.name == name && version.satisfied_by?(comp.version) }
+          finder = ->(cversion) { version.satisfied_by?(cver) }
         elsif version.is_a?(Gem::Version)
-          finder = ->(comp) { comp.name == name && comp.version == version }
+          finder = ->(cversion) { cversion == version }
         elsif version.is_a?(String)
           req = Gem::Requirement.new(normalize_requirement(version))
-          finder = ->(comp) { comp.name == name && req.satisfied_by?(comp.version) }
+          finder = ->(cversion) { req.satisfied_by?(cversion) }
         else
           fail Diversity::Exception, "Invalid version #{version}", caller
         end
 
         # Find all matching components and sort them by their version (in descending order)
-        installed_components.select(&finder).sort
+        cversions.last.select(&finder).map do |cversion|
+          get_component(name, cversion)
+        end
       end
 
       # Init the cache associated with the current registry
