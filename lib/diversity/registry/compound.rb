@@ -51,12 +51,18 @@ module Diversity
 
       # Returns a list of installed components
       #
-      # @return [Array] An array of Component objects
+      # @return [Hash] A hash of component_name => [component_versions]
       def installed_components
-        installed = []
+        installed = {}
         @entries.each do |entry|
-          entry.registry.installed_components.each do |component|
-            installed << component unless installed.include?(component)
+          entry.registry.installed_components.each_pair do |name, versions|
+            if installed.key?(name)
+              installed[name] = (installed[key] << versions).uniq.sort do |a, b|
+                b <=> a
+              end
+            else
+              installed[name] = versions
+            end
           end
         end
         installed

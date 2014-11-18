@@ -24,14 +24,14 @@ describe 'Component' do
     component_path = File.expand_path(
       File.join(File.dirname(__FILE__), 'components/dummy/0.0.1/diversity.json')
     )
-    component = Diversity::Component.new(component_path)
+    component = Diversity::Component.new(File.read(component_path), {base_url: '/dummy'})
     component.class.should.equal(Diversity::Component)
     component.name.should.equal('dummy')
     component.version.to_s.should.equal('0.0.1')
     component.templates.should.equal(['dummy.html'])
-    component.styles.should.equal(['css/dummy.css'])
-    component.scripts.to_a.should.equal(['js/dummy1.js', 'js/dummy2.js'])
-    component.dependencies.should.equal('something-special' => Gem::Requirement.new('>0.0.1'))
+    component.styles.should.equal(['/dummy/css/dummy.css'])
+    component.scripts.to_a.should.equal(['/dummy/js/dummy1.js', '/dummy/js/dummy2.js'])
+    component.dependencies.should.equal('something-special' => '>0.0.1')
     component.type.should.equal('object')
     component.pagetype.should.equal(nil)
     component.context.should.equal({})
@@ -45,10 +45,7 @@ describe 'Component' do
     component.title.should.equal(nil)
     component.thumbnail.should.equal('dummy.png')
     component.price.should.equal(nil)
-    component.assets.should.equal([])
-    component.src.should.equal component_path
     component.i18n.should.equal({})
-    component.base_path.should.equal(File.dirname(component_path))
     component.checksum.should.equal(Digest::SHA1.hexdigest(component.dump))
   end
 
@@ -56,7 +53,7 @@ describe 'Component' do
     registry_path = File.expand_path(
       File.join(File.dirname(__FILE__), 'components')
     )
-    registry = Diversity::Registry::Local.new(registry_path)
+    registry = Diversity::Registry::Local.new(base_path: registry_path)
     it '...by Rubygems version' do
       registry.installed?('dummy', Gem::Version.new('0.0.1')).should.equal(true)
       comp = registry.get_component('dummy', Gem::Version.new('0.0.1'))
@@ -94,7 +91,7 @@ describe 'Component' do
     registry_path = File.expand_path(
       File.join(File.dirname(__FILE__), 'components')
     )
-    registry = Diversity::Registry::Local.new(registry_path)
+    registry = Diversity::Registry::Local.new(base_path: registry_path)
     comp = registry.get_component('weak-sauce', '0.0.4')
     comp.class.should.equal(Diversity::Component)
     comp.name.should.equal('weak-sauce')
@@ -109,61 +106,10 @@ describe 'Component' do
     all_comps.last.version.to_s.should.equal('0.0.4')
   end
 
-  should 'be able to install/uninstall a component' do
-    registry_path = File.expand_path(Dir.mktmpdir)
-    begin
-      registry = Diversity::Registry::Local.new(registry_path)
-      registry.install_component(
-        File.expand_path(
-          File.join(
-            File.dirname(__FILE__), 'components',
-            'dummy', '0.0.1', 'diversity.json'
-          )
-        )
-      )
-      registry.installed?('dummy', Gem::Version.new('0.0.1')).should.equal(true)
-      comp = registry.get_component('dummy', Gem::Version.new('0.0.1'))
-      comp.name.should.equal('dummy')
-      comp.version.to_s.should.equal('0.0.1')
-      registry.uninstall_component('dummy', '0.0.1')
-      registry.installed?('dummy', Gem::Version.new('0.0.1')).should.equal(false)
-      comp = registry.get_component('dummy', Gem::Version.new('0.0.1'))
-      comp.should.equal(nil)
-    ensure
-      FileUtils.remove_entry_secure registry_path
-    end
-  end
-
-  should 'be able to install/uninstall a component from the web' do
-    registry_path = File.expand_path(Dir.mktmpdir)
-    begin
-      registry = Diversity::Registry::Local.new(registry_path)
-      registry.install_component(
-        'http://diversity.io/textalk-webshop-native-components/' \
-        'tws-bootstrap/raw/master/diversity.json'
-      )
-      registry.installed?('tws-bootstrap', '>0').should.equal(true)
-      comp = registry.get_component('tws-bootstrap', '>0')
-      comp.name.should.equal('tws-bootstrap')
-      registry.uninstall_component('tws-bootstrap', '0.0.1')
-      registry.installed?('tws-bootstrap', '>0').should.equal(false)
-      comp = registry.get_component('tws-bootstrap', '>0')
-      comp.should.equal(nil)
-    ensure
-      FileUtils.remove_entry_secure registry_path
-    end
-  end
-
-  should 'fail when config file cannot be loaded' do
-    ->() { Diversity::Component.new('nonexisting.json') }
-      .should.raise(Diversity::Exception).message
-      .should.match(/Failed to load component configuration from nonexisting.json/)
-  end
-
   should 'fail when config file cannot be parsed as valid JSON' do
-    ->() { Diversity::Component.new('http://www.textalk.se/') }
+    ->() { Diversity::Component.new('yum yum', {}) }
       .should.raise(Diversity::Exception).message
-      .should.match(/Failed to parse config file/)
+      .should.match(/Failed to parse configuration/)
   end
 
 =begin
@@ -184,13 +130,7 @@ describe 'Component' do
   should 'allow registry to work in different modes' do
     [:dryrun, :nowrite, :verbose].each do |mode|
       registry_path = File.expand_path(Dir.mktmpdir)
-      registry = Diversity::Registry::Local.new(registry_path, mode: mode)
-      registry.install_component(
-        File.join(
-          File.dirname(__FILE__), 'components', 'something-special', '0.5.5', 'diversity.json'
-        )
-      )
-      registry.uninstall_component('something-special')
+      registry = Diversity::Registry::Local.new(base_path: registry_path, mode: mode)
       registry.mode.should.equal(mode)
       FileUtils.remove_entry_secure registry_path
     end
