@@ -35,7 +35,7 @@ module Diversity
         :name, :version, :templates, :styles, :scripts, :dependencies,
         :type, :pagetype, :context, :settings, :angular,
         :partials, :themes, :fields, :title, :thumbnail, :price,
-        :src, :i18n, :description
+        :i18n, :description
       )
 
     Configuration.members.each do |property_name|
@@ -46,9 +46,9 @@ module Diversity
     #
     # @param [String] spec     The diversity.json of the component (as JSON string).
     # @param [Hash]   options  Options: base_url, skip_validation
-    # 
+    #
     # @raise [Diversity::Exception] if the resource cannot be loaded
-    # 
+    #
     # @return [Diversity::Component]
     def initialize(spec, options)
       @configuration = Configuration.new
@@ -125,7 +125,7 @@ module Diversity
         when 'prerequisite'
           fail Diversity::Exception, "#{self} needs #{key} in context as prerequisite." unless
             context.has_key?(key)
-          
+
           resolved_context[key] = context[key]
         else
           fail Diversity::Exception,
@@ -214,7 +214,7 @@ module Diversity
       begin
         JSON.parse(data, symbolize_names: false)
       rescue JSON::ParserError
-        raise Diversity::Exception, "Failed to parse config file from #{@configuration.src}", caller
+        raise Diversity::Exception, "Failed to parse configuration", caller
       end
     end
 

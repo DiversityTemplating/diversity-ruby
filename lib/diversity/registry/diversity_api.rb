@@ -34,30 +34,16 @@ module Diversity
 
       # Returns a list of installed components
       #
-      # @return [Array] An array of Component objects
+      # @return [Hash] A hash of component_name => [component_versions]
       def installed_components
-        component_objs = []
+        component_versions = {}
         components = call_api('components/')
         components.each do |component|
           version_objs = get_installed_versions(component[:name])
-          version_objs.each do |version_obj|
-            begin
-              base_url = "#{@options[:backend_url]}components/#{component[:name]}" +
-                "/#{version_obj.to_s}/files"
-              spec = safe_load("#{base_url}/diversity.json")
-              #puts "Got spec from #{component[:name]}:#{version_obj} on #{base_url}:\n#{spec}"
-
-              component_objs <<
-                Component.new(
-                  spec,
-                  { base_url: base_url, skip_validation: @options[:skip_validation] }
-                )
-            rescue Exception => err
-              next # Silently ignore non-working components
-            end
-          end
+          version_objs.sort! { |a, b| b <=> a }
+          component_versions[component[:name]] = version_objs
         end
-        component_objs
+        component_versions
       end
 
       def get_component(name, version = nil)

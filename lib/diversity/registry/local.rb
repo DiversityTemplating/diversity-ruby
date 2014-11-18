@@ -93,65 +93,28 @@ module Diversity
 
       # Returns a list of locally installed components
       #
-      # @return [Array] An array of Component objects
+      # @return [Hash] A hash of component_name => [component_versions]
       def installed_components
-        return self.class.installed_components[@options[:base_path]] if
-          self.class.installed_components.key?(@options[:base_path])
+        cache_key = "installed_components_#{object_id}"
+        return @cache[cache_key] if @cache.key?(cache_key)
         Dir.chdir(@options[:base_path]) do
-          self.class.installed_components[@options[:base_path]] =
-            Dir.glob(GLOB).reduce([]) do |res, cfg|
-
-            begin
-              src = File.expand_path(cfg)
-              spec = File.read(src)
-              #src = File.expand_path(cfg)
-
-              component = Component.new(
-                spec, {
-                  base_url: @options[:base_url] ?
-                    @options[:base_url] + '/' + File.dirname(cfg) : nil,
-                  base_path: File.dirname(src),
-                  skip_validation: @options[:skip_validation],
-                }
-              )
-              res << component if res
-            rescue Diversity::Exception => e
-              puts "Caught an exception trying to put #{cfg} in list of installed components."
-              p e
+          data =
+            Dir.glob(GLOB).reduce({}) do |res, cfg|
+              begin
+                component, version, _ = cfg.split(File::SEPARATOR)
+                res[component] = [] unless res.key?(component)
+                res[component] << Gem::Version.new(version)
+              rescue Diversity::Exception => e
+                puts "Caught an exception trying to put #{cfg} in list of installed components."
+                p e
+              end
+              res
+            end.each_pair do |component, versions|
+              versions.sort! { |a, b| b <=> a }
             end
-            res
-          end
+          @cache.store(cache_key, data, expires: 600)
         end
-        self.class.installed_components[@options[:base_path]]
-      end
-
-      # Installs a component locally. If the component is already installed, it will not be
-      # installed again unless the force flag is set to true
-      #
-      # @param [String] res components resource, base_url or base_path.
-      # @param [bool] force Whether component installation should be forced or not
-      # @return [Diversity::Component]
-      #
-      # @todo Fixme or remove?  install_component is broken right now…
-      def install_component(res, force = false)
-        # @todo Get the spec here.
-        comp = Component.new(res) # No base_uri here
-        name = comp.name
-        version = comp.version
-        # If component is already installed, return locally
-        # installed component instead (unless forced)
-        return get_component(name, version) unless
-          force || !installed?(name, version)
-
-        # @todo Make sure comp.name is a usable name
-        install_path = File.join(@options[:base_path], name, version.to_s)
-        fileutils.mkdir_p(install_path)
-        config_path = File.join(install_path, 'diversity.json')
-        write_file(config_path, comp.dump, comp.src)
-        copy_component_files(comp, res_path, install_path)
-        # Invalidate cache (unless we are faking the installation)
-        self.class.installed_components.delete(@options[:base_path]) unless noop?
-        get_component(name, version)
+        @cache[cache_key]
       end
 
       def mode
@@ -169,50 +132,10 @@ module Diversity
           uninstalled_versions << comp.version
           fileutils.rm_rf(comp.base_path) #fixme
         end
-        # Invalidate cache (unless we are faking the uninstallation)
-        self.class.installed_components.delete(@options[:base_path]) unless noop?
         uninstalled_versions
       end
 
       private
-
-      def self.installed_components
-        @installed_components ||= {}
-      end
-
-      def copy_component_files(component, src, dst)
-        copy_files(component.templates, src, dst)
-        copy_files(component.styles, src, dst) if component.styles
-        copy_files(component.scripts, src, dst)
-        # TODO: partials?
-        copy_files(component.themes, src, dst)
-        copy_files(component.thumbnail, src, dst) if component.thumbnail
-        copy_files(
-          component.settings.source, src, dst
-        ) if component.settings.source && !remote?(component.settings.source)
-        # TODO: assets?
-      end
-
-      # Copies a list of files
-      #
-      # @param [Array] files
-      # @param [String] src_base_dir
-      # @param [String] dst_base_dir
-      # @return [nil]
-      def copy_files(files, src_base_dir, dst_base_dir)
-        files = [files] unless files.respond_to?(:each)
-        files.each do |f|
-          next if remote?(f)
-          full_src = File.join(src_base_dir, f)
-          full_dst = File.join(dst_base_dir, f)
-          fail Diversity::Exception,
-               "Failed to copy #{full_src} to #{full_dst}",
-               caller unless (data = safe_load(full_src))
-          dirname = File.dirname(full_dst)
-          fileutils.mkdir_p(dirname) unless File.exist?(dirname) && File.directory?(dirname)
-          write_file(full_dst, data, full_src)
-        end
-      end
 
       # Returns a suitable module for doing file operations
       #
@@ -238,18 +161,6 @@ module Diversity
       # @return [true|false]
       def verbose?
         @mode == :dryrun || @mode == :verbose
-      end
-
-      # Maybe writes a file and maybe tells the world about it
-      #
-      # @param [String] dst
-      # @param [String] data
-      # @param [String|nil] src
-      # @return [nil]
-      def write_file(dst, data, src = nil)
-        puts(src ? "cp #{src} #{dst}" : "install #{dst}") if verbose?
-        File.write(dst, data) unless noop?
-        nil
       end
     end
   end
