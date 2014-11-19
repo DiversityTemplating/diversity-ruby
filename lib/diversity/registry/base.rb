@@ -5,6 +5,17 @@ module Diversity
     class Base
       include Common
 
+      # Checks whether a component with a specified version is available.
+      #
+      # @param [String] name Component name
+      # @param [String|Gem::Version|Gem::Requirement] version Component version. If set to a
+      #   Gem::Version, only the exact version is set for. If set to a string or a Gem::Requirement
+      #   it is possible to search for a "fuzzy" version.
+      # @return [true|false]
+      def available?(name, version = nil)
+        !get_matching_versions(name, version).empty?
+      end
+
       # Takes a list of components, loads all of their dependencies and returns a combined list of
       # components. Dependencies will only be included once.
       #
@@ -27,31 +38,40 @@ module Diversity
         # @todo Load dependencies specified as URLs?
       end
 
-      # Returns installed components matching the name and version of parameters
+      # Returns components matching the name and version of parameters
       #
       # @param [String] name
-      # @param [nil|Gem::Requirement|Gem::Version|String] version
+      # @param [nil|Gem::Requirement|Gem::Version|String] req
       # @return [Array]
-      def get_matching_components(name, version = nil)
-        cversions = installed_components.find { |cname, _| cname == name }
-        return [] if cversions.nil?
-        if version.nil? # All versions
-          finder = ->(_) { true }
-        elsif version.is_a?(Gem::Requirement)
-          finder = ->(cversion) { version.satisfied_by?(cver) }
-        elsif version.is_a?(Gem::Version)
-          finder = ->(cversion) { cversion == version }
-        elsif version.is_a?(String)
-          req = Gem::Requirement.new(normalize_requirement(version))
-          finder = ->(cversion) { req.satisfied_by?(cversion) }
-        else
-          fail Diversity::Exception, "Invalid version #{version}", caller
+      def get_matching_components(name, req)
+        get_matching_versions(name, req).map do |version|
+          get_component(name, version)
         end
+      end
 
-        # Find all matching components and sort them by their version (in descending order)
-        cversions.last.select(&finder).map do |cversion|
-          get_component(name, cversion)
+      private
+
+      # Returns components info matching the name and version of parameters
+      #
+      # @param [String] name
+      # @param [nil|Gem::Requirement|Gem::Version|String] req
+      # @return [Array]
+      def get_matching_versions(name, req = nil)
+        versions = installed_components.find { |cname, _| cname == name }
+        return [] if versions.nil?
+        if req.nil? # All versions
+          finder = ->(_) { true }
+        elsif req.is_a?(Gem::Requirement)
+          finder = ->(version) { req.satisfied_by?(version) }
+        elsif req.is_a?(Gem::Version)
+          finder = ->(version) { req == version }
+        elsif req.is_a?(String)
+          req = Gem::Requirement.new(normalize_requirement(req))
+          finder = ->(version) { req.satisfied_by?(version) }
+        else
+          fail Diversity::Exception, "Invalid requirement #{req}", caller
         end
+        versions.last.select(&finder)
       end
 
       # Init the cache associated with the current registry
@@ -79,17 +99,6 @@ module Diversity
           adapter options[:adapter], options[:adapter_options]
         end
         nil
-      end
-
-      # Checks whether a component with a specified version is installed.
-      #
-      # @param [String] name Component name
-      # @param [String|Gem::Version|Gem::Requirement] version Component version. If set to a
-      #   Gem::Version, only the exact version is set for. If set to a string or a Gem::Requirement
-      #   it is possible to search for a "fuzzy" version.
-      # @return [true|false]
-      def installed?(name, version = nil)
-        !get_matching_components(name, version).empty?
       end
     end
   end
