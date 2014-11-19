@@ -121,20 +121,6 @@ module Diversity
         @options[:mode]
       end
 
-      # Removes a locally installed component from the file system
-      #
-      # @param [String] name Component name
-      # @param [Gem::Version|String|nil] version
-      # @return [Array] An array of the versions that were removed
-      def uninstall_component(name, version = nil)
-        uninstalled_versions = []
-        get_matching_components(name, version).each do |comp|
-          uninstalled_versions << comp.version
-          fileutils.rm_rf(comp.base_path) #fixme
-        end
-        uninstalled_versions
-      end
-
       private
 
       # Returns a suitable module for doing file operations
