@@ -32,7 +32,6 @@ describe 'Component' do
     component.styles.should.equal(['/dummy/css/dummy.css'])
     component.scripts.to_a.should.equal(['/dummy/js/dummy1.js', '/dummy/js/dummy2.js'])
     component.dependencies.should.equal('something-special' => '>0.0.1')
-    component.type.should.equal('object')
     component.pagetype.should.equal(nil)
     component.context.should.equal({})
     component.settings.class.should.equal(Diversity::JsonSchema)
@@ -55,31 +54,31 @@ describe 'Component' do
     )
     registry = Diversity::Registry::Local.new(base_path: registry_path)
     it '...by Rubygems version' do
-      registry.installed?('dummy', Gem::Version.new('0.0.1')).should.equal(true)
+      registry.available?('dummy', Gem::Version.new('0.0.1')).should.equal(true)
       comp = registry.get_component('dummy', Gem::Version.new('0.0.1'))
       comp.name.should.equal('dummy')
       comp.version.to_s.should.equal('0.0.1')
     end
     it '...by exact version string' do
-      registry.installed?('dummy', '0.0.1').should.equal(true)
+      registry.available?('dummy', '0.0.1').should.equal(true)
       comp = registry.get_component('dummy', '0.0.1')
       comp.name.should.equal('dummy')
       comp.version.to_s.should.equal('0.0.1')
     end
     it '...by fuzzy version string' do
-      registry.installed?('dummy', '>0').should.equal(true)
+      registry.available?('dummy', '>0').should.equal(true)
       comp = registry.get_component('dummy', '>0')
       comp.name.should.equal('dummy')
       comp.version.to_s.should.equal('0.0.1')
     end
     it '...by fuzzy version string (take 2)' do
-      registry.installed?('dummy', '^0.0.1').should.equal(true)
+      registry.available?('dummy', '^0.0.1').should.equal(true)
       comp = registry.get_component('dummy', '^0.0.1')
       comp.name.should.equal('dummy')
       comp.version.to_s.should.equal('0.0.1')
     end
     it '...by fuzzy version string (take 3)' do
-      registry.installed?('something-special', '^0.5.0').should.equal(true)
+      registry.available?('something-special', '^0.5.0').should.equal(true)
       comp = registry.get_component('something-special', '^0.5.0')
       comp.name.should.equal('something-special')
       comp.version.to_s.should.equal('0.5.5')
