@@ -34,7 +34,7 @@ module Diversity
     #
     # @return [Hash|String]
     def render(component, context = {}, component_settings = {}, path = [])
-      add_component(component)
+      settings.add_component(component)
 
       # Get component schema
       schema = component.settings.data
@@ -146,21 +146,7 @@ module Diversity
     def get_component(name, version = nil)
       component = @options[:registry].get_component(name, version)
       fail "No component from #{sub_settings['component']}" unless sub_component
-      add_component(component)
-    end
-
-    # Update the rendering context with data from the currently
-    # rendering component.
-    #
-    # @param [Array] An array of Diversity::Component objects
-    # @return [nil]
-    def add_component(component)
-      #components = @options[:registry].expand_component_list(component)
-
-      #components.each do |component|
-        settings.add_component(component)
-      #end
-      #nil
+      settings.add_component(component)
     end
 
     class << self
