@@ -189,7 +189,7 @@ module Diversity
       mustache_settings['styles' ] = settings.styles
 
       begin
-        mustache_settings['l10n'   ] = settings.l10n(context[:language]).to_json
+        mustache_settings[:l10n] = settings.l10n(context[:language])
       rescue Encoding::UndefinedConversionError => e
         fail Diversity::Exception, "Bad json in l10n of #{component}: #{e}\n" +
           "We have collected: #{settings.l10n(context[:language]).inspect}\n" +
