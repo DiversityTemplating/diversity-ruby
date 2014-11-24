@@ -19,7 +19,7 @@ module Diversity
 
     MASTER_COMPONENT_SCHEMA =
       'https://raw.githubusercontent.com/DiversityTemplating/' \
-      'Diversity/new-semver-pattern/validation/diversity.schema.json'
+      'Diversity/master/validation/diversity.schema.json'
 
     attr_reader :checksum, :raw
 
