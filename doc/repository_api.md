@@ -14,7 +14,7 @@
 # If version is a Gem::Version, that specific version will be returned.
 # If version is a String or a Gem::Requirement, the highest version that satisfies the requirement
 # is returned.
-def [](component, version)
+def [](component, version = nil)
 end
 ```
 
