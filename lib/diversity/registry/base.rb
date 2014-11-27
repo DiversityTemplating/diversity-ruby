@@ -35,7 +35,9 @@ module Diversity
       #   version.
       # @return [Component|nil]
       def get_component(name, version = nil)
-        # @todo Load dependencies specified as URLs?
+        fail NotImplementedError,
+             "#{__method__} must be overridden by subclass.",
+             caller
       end
 
       # Returns components matching the name and version of parameters
