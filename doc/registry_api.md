@@ -1,7 +1,7 @@
-# Suggested API for repositories
+# Suggested API for registries
 
 ```ruby
-# Returns the component matching the parameters from the repo or nil if
+# Returns the component matching the parameters from the registry or nil if
 # the component is not available. If multiple versions of the component is matching
 # the component with the highest version is returned.
 #
@@ -19,7 +19,7 @@ end
 ```
 
 ```ruby
-# Returns whether a component matching the parameters is available in the repo.
+# Returns whether a component matching the parameters is available in the registry.
 #
 # @param [String] component
 # @param [nil|String|Gem::Requirement|Gem::Version] version
@@ -34,13 +34,14 @@ end
 ```
 
 ```ruby
-# Returns an array of the components availalable from the repo. Only the component names are returned.
+# Returns an array of the components availalable from the registry. Only the component names
+# are returned.
 #
 # @return [Array]
 #
 # To extract both component names and their available versions, the following code can be used
-# repo.components.reduce({}) do |memo, component|
-#   memo[component] = repo.versions(component)
+# registry.components.reduce({}) do |memo, component|
+#   memo[component] = registry.versions(component)
 # end
 #
 def components()
@@ -50,7 +51,7 @@ end
 ```ruby
 # Returns an array of the versions of the specified component matching the parameters.
 # The return value will be an array of Gem::Version objects. If no matching versions is available
-# from the repo, an empty array is returned.
+# from the registry, an empty array is returned.
 #
 # @param [String] component
 # @param [nil|String|Gem::Requirement|Gem::Version] version

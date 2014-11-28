@@ -23,4 +23,4 @@ Gemfile.lock
 _yardoc
 !doc/
 doc/*
-!doc/repository_api.md
+!doc/registry_api.md
