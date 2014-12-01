@@ -67,7 +67,7 @@ module Diversity
         scripts
       end
 
-      def minified_styles(base_dir, theme_id, theme_timestamp, minify_remotes)
+      def minified_styles(base_dir, theme_id, theme_timestamp, minify_remotes = false)
         styles = []
         path = File.expand_path(File.join(base_dir, 'styles', "#{theme_id}-#{theme_timestamp.to_i}"))
         minified_exist = File.exist?(path)
@@ -79,7 +79,7 @@ module Diversity
             if !remote?(style) || minify_remotes
               next if minified_exist
               data = safe_load(style)
-              minified << compressor.compress(data) if data
+              minified << compressor.compress(data << "\n") if data
             else
               styles << style
             end
@@ -87,8 +87,8 @@ module Diversity
         end
         unless minified_exist || minified.empty?
           create_minified_file(path, minified)
-          styles.unshift(path)
         end
+        styles.unshift(minified_url(path))
         styles
       end
 
@@ -107,6 +107,11 @@ module Diversity
         FileUtils.mkdir_p(File.dirname(path), mode: 0775)
         File.open(path, 'w') { |file| file.write(data) }
         path
+      end
+
+      def minified_url(path)
+        parts = path.split(File::SEPARATOR).map { |p| p.empty? ? File::SEPARATOR : p }
+        '/minified' << '/' << parts[-2] << '/' << parts[-1]
       end
     end
   end

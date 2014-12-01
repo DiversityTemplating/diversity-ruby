@@ -15,6 +15,7 @@ module Diversity
       minify_base_dir: File.join(Dir.tmpdir, 'diversity', 'minified'),
       minify_css: false,
       minify_js: false,
+      minify_remotes: false,
       registry: nil
     }
 
@@ -25,6 +26,10 @@ module Diversity
       # Ensure that we have a valid registry to work against
       fail 'Cannot run engine without a valid registry!' unless
         @options[:registry].is_a?(Registry::Base)
+    end
+
+    def options
+      @options
     end
 
     # Renders a component
@@ -164,7 +169,6 @@ module Diversity
     #
     # @return [String]
     def render_template(component, context, component_settings)
-
       mustache_settings = {}
       mustache_settings[:settings]     = component_settings
       mustache_settings[:settingsJSON] =
@@ -177,7 +181,8 @@ module Diversity
         mustache_settings['scripts'] = settings.minified_scripts(
                                          @options[:minify_base_dir],
                                          context[:theme_id],
-                                         context[:theme_timestamp]
+                                         context[:theme_timestamp],
+                                         @options[:minify_remotes]
                                        )
       else
         mustache_settings['scripts'] = settings.scripts
@@ -186,7 +191,8 @@ module Diversity
         mustache_settings['styles'] = settings.minified_styles(
                                         @options[:minify_base_dir],
                                         context[:theme_id],
-                                        context[:theme_timestamp]
+                                        context[:theme_timestamp],
+                                        @options[:minify_remotes]
                                       )
       else
         mustache_settings['styles' ] = settings.styles
