@@ -21,6 +21,4 @@ Gemfile.lock
 # YARD artifacts
 .yardoc
 _yardoc
-!doc/
-doc/*
-!doc/registry_api.md
+doc/
