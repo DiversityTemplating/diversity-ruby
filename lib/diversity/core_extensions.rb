@@ -10,7 +10,8 @@ class Hash
         target[key] = target[key].keep_merge(hash[key])
         next
       end
-      target.update(hash) { |_, *values| values.flatten.uniq }
+      target[key] = hash[key]
+      #target.update(hash) { |_, *values| values.flatten.uniq }
     end
     target
   end

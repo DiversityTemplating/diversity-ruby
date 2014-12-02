@@ -14,10 +14,13 @@ Gem::Specification.new do |s|
   s.require_path          = 'lib'
   s.required_ruby_version = '>= 1.9.0'
 
+  s.add_dependency('cssminify')
   s.add_dependency('json-rpc-client')
-  s.add_dependency('json-schema', '=2.2.1')
+  s.add_dependency('json-schema', '~>2.4')
+  s.add_dependency('moneta')
   s.add_dependency('mustache')
-  s.add_dependency('ruby-cache')
+  s.add_dependency('open_uri_redirections')
+  s.add_dependency('uglifier')
   s.add_dependency('unirest')
 
   s.add_development_dependency('bacon')

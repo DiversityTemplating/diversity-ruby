@@ -1,5 +1,6 @@
 require 'English'
 require 'open-uri'
+require 'open_uri_redirections'
 
 # Main namespace for diversity
 module Diversity
@@ -10,7 +11,7 @@ module Diversity
     # @param [String] res
     # @return [true|false]
     def remote?(res)
-      %r{^(https?|ftp)://.*$} =~ res.to_s
+      %r{//.*$} =~ res.to_s
     end
 
     # Create a list of absolute paths from a base path and a list of
@@ -24,7 +25,7 @@ module Diversity
       if file_list.respond_to?(:each)
         file_list.map do |file|
           res = file.to_s
-          remote?(res) ? res : File.join(base_path, res)
+          remote?(res) ? res : "#{base_path}/#{res}"
         end
       else
         f = file_list.to_s
@@ -63,8 +64,10 @@ module Diversity
         end
       end
 
-      req.gsub!(/^(\d.*)/, '=\1')
-      req.gsub!(/^(~)([^>].*)/, '\1>\2')
+      req.gsub!(/^(\d+\.\d+)\.\d+$/, '~>\1') # ^1.0.0  =>  ~>1.0
+      req.gsub!(/^(\d+)\.\d+$/, '~>\1')      # ^1.0    =>  ~>1
+      req.gsub!(/^(\d+)$/, '\1')             # ^1      =>  1
+      req.gsub!(/^(~)([^>].*)/, '\1>\2') # ??
       req
     end
 
@@ -76,7 +79,14 @@ module Diversity
     def safe_load(resource)
       data = nil
       begin
-        Kernel.open(resource) do |res|
+        Kernel.open(resource, allow_redirections: :safe) do |res|
+          # We will only handle UTF-8 encoded data for now
+          # so lets pretend that all data is UTF-8 regardless of what
+          # the original source claims
+          if res.external_encoding != Encoding::UTF_8
+            #puts "Reading from #{resource} (#{res.external_encoding.name}) as UTF-8"
+            res.set_encoding(Encoding::UTF_8)
+          end
           data = res.read
         end
       rescue StandardError
@@ -97,16 +107,6 @@ module Diversity
       rescue JSON::ParserError
         raise Diversity::Exception, "Failed to parse schema from #{resource}", caller
       end
-    end
-
-    # Gets the "parent" of an URL
-    #
-    # @param [String] url_string
-    # @return [String]
-    def uri_base_path(url_string)
-      url = Addressable::URI.parse(url_string)
-      url.path = File.dirname(url.path)
-      url.to_s
     end
   end
 end
