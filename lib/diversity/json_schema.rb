@@ -1,4 +1,4 @@
-require 'json'
+require 'json-schema'
 require_relative 'json_object'
 
 module Diversity
