@@ -55,8 +55,10 @@ module Diversity
         fail 'Must have a base dir' unless opts[:base_dir]
         fail 'Must have a base url' unless opts[:base_url]
         opts[:filename] = random_name unless opts[:filename]
-        scripts = []
-        path = File.expand_path(File.join(opts[:base_dir], 'scripts', opts[:filename]))
+        require 'set'
+        minified_scripts = Set.new
+        scripts = Set.new
+        path = File.expand_path(File.join(opts[:base_dir], 'scripts', opts[:filename]) + '.min.js')
         minified_exist = File.exist?(path)
         require 'uglifier'
         uglifier = Uglifier.new
@@ -64,15 +66,21 @@ module Diversity
         @component_set.to_a.each do |component|
           component.scripts.each do |script|
             if !remote?(script) || opts[:minify_remotes]
-              next if minified_exist
+              next if minified_exist || minified_scripts.include?(script)
               data = safe_load(script)
-              minified << uglifier.compile(data << "\n") if data
+              if data
+                minified << uglifier.compile(data << "\n")
+                minified_scripts << script
+              else
+                p "Failed to load #{script}"
+              end
             else
               scripts << script
             end
           end
         end
         create_minified_file(path, minified) unless minified_exist || minified.empty?
+        scripts = scripts.to_a
         scripts.unshift(minified_url(opts[:base_url], path)) if minified_exist || !minified.empty?
         scripts
       end
@@ -82,8 +90,10 @@ module Diversity
         fail 'Must have a base dir' unless opts[:base_dir]
         fail 'Must have a base url' unless opts[:base_url]
         opts[:filename] = random_name unless opts[:filename]
-        styles = []
-        path = File.expand_path(File.join(opts[:base_dir], 'styles', opts[:filename]))
+        require 'set'
+        minified_styles = Set.new
+        styles = Set.new
+        path = File.expand_path(File.join(opts[:base_dir], 'styles', opts[:filename]) + '.min.css')
         minified_exist = File.exist?(path)
         require 'cssminify'
         compressor = CSSminify.new
@@ -91,15 +101,21 @@ module Diversity
         @component_set.to_a.each do |component|
           component.styles.each do |style|
             if !remote?(style) || opts[:minify_remotes]
-              next if minified_exist
+              next if minified_exist || minified_styles.include?(style)
               data = safe_load(style)
-              minified << compressor.compress(data << "\n") if data
+              if data
+                minified << compressor.compress(data << "\n")
+                minified_styles << style
+              else
+                p "Failed to load #{style}"
+              end
             else
               styles << style
             end
           end
         end
         create_minified_file(path, minified) unless minified_exist || minified.empty?
+        styles = styles.to_a
         styles.unshift(minified_url(opts[:base_url], path)) if minified_exist || !minified.empty?
         styles
       end

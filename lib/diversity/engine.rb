@@ -55,7 +55,7 @@ module Diversity
       # Traverse the component_settings to expand sub-components
       expanded_settings = expand_settings(schema, component_settings, context, path, component)
 
-      render_template(component, context, expanded_settings)
+      render_template(component, context, expanded_settings, path)
     end
 
 
@@ -166,30 +166,32 @@ module Diversity
     # @param [Hash] component_settings
     #
     # @return [String]
-    def render_template(component, context, component_settings)
+    def render_template(component, context, component_settings, path)
       mustache_settings = {}
       mustache_settings[:settings]     = component_settings
       mustache_settings[:settingsJSON] =
         component_settings.to_json.gsub(/<\/script>/i, '<\\/script>')
 
-      # Add angularBootstrap, scripts and styles for this level.
-      mustache_settings['angularBootstrap'] =
-        "angular.bootstrap(document,#{settings.angular.to_json});"
+      # Add angularBootstrap, scripts and styles (top level only)
+      if path.empty?
+        mustache_settings['angularBootstrap'] =
+          "angular.bootstrap(document,#{settings.angular.to_json});"
 
-      # Should we use minification?
-      if @options[:minification][:minify_js] || @options[:minification][:minify_js]
-        minify_options = @options[:minification].dup
-        minify_options[:filename] = context[:minify_filename]
-      end
-      if @options[:minification][:minify_js]
-        mustache_settings['scripts'] = settings.minified_scripts(minify_options)
-      else
-        mustache_settings['scripts'] = settings.scripts
-      end
-      if @options[:minification][:minify_css]
-        mustache_settings['styles'] = settings.minified_styles(minify_options)
-      else
-        mustache_settings['styles'] = settings.styles
+        # Should we use minification?
+        if @options[:minification][:minify_js] || @options[:minification][:minify_js]
+          minify_options = @options[:minification].dup
+          minify_options[:filename] = context[:minify_filename]
+        end
+        if @options[:minification][:minify_js]
+          mustache_settings['scripts'] = settings.minified_scripts(minify_options)
+        else
+          mustache_settings['scripts'] = settings.scripts
+        end
+        if @options[:minification][:minify_css]
+          mustache_settings['styles'] = settings.minified_styles(minify_options)
+        else
+          mustache_settings['styles'] = settings.styles
+        end
       end
       begin
         mustache_settings[:l10n] = settings.l10n(context[:language])
