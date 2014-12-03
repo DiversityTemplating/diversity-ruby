@@ -121,11 +121,11 @@ module Diversity
       end
 
       def scripts
-        @component_set.to_a.map { |comp| comp.scripts }.flatten
+        @component_set.to_a.map { |comp| comp.scripts }.flatten.uniq
       end
 
       def styles
-        @component_set.to_a.map { |comp| comp.styles }.flatten
+        @component_set.to_a.map { |comp| comp.styles }.flatten.uniq
       end
 
       private
