@@ -5,13 +5,6 @@ module Diversity
     class Settings
       include Common
 
-      DEFAULT_MINIFY_OPTIONS = {
-        base_dir: nil,
-        base_url: nil,
-        filename: nil,
-        minify_remotes: false
-      }
-
       def initialize(registry)
         @component_set = Diversity::ComponentSet.new(registry)
       end
@@ -51,21 +44,22 @@ module Diversity
       end
 
       def minified_scripts(options = {})
-        opts = DEFAULT_MINIFY_OPTIONS.merge(options)
-        fail 'Must have a base dir' unless opts[:base_dir]
-        fail 'Must have a base url' unless opts[:base_url]
-        opts[:filename] = random_name unless opts[:filename]
+        fail 'Must have a base dir' unless options[:base_dir]
+        fail 'Must have a base url' unless options[:base_url]
+        options[:filename] = random_name unless options[:filename]
         require 'set'
         minified_scripts = Set.new
         scripts = Set.new
-        path = File.expand_path(File.join(opts[:base_dir], 'scripts', opts[:filename]) + '.min.js')
+        path = File.expand_path(
+                 File.join(options[:base_dir], 'scripts', "#{options[:filename]}.min.js")
+               )
         minified_exist = File.exist?(path)
         require 'uglifier'
         uglifier = Uglifier.new
         minified = ''
         @component_set.to_a.each do |component|
           component.scripts.each do |script|
-            if !remote?(script) || opts[:minify_remotes]
+            if !remote?(script) || options[:minify_remotes]
               next if minified_exist || minified_scripts.include?(script)
               data = safe_load(script)
               if data
@@ -81,26 +75,29 @@ module Diversity
         end
         create_minified_file(path, minified) unless minified_exist || minified.empty?
         scripts = scripts.to_a
-        scripts.unshift(minified_url(opts[:base_url], path)) if minified_exist || !minified.empty?
+        scripts.unshift(
+          minified_url(options[:base_url], path)
+        ) if minified_exist || !minified.empty?
         scripts
       end
 
-      def minified_styles(options = {})
-        opts = DEFAULT_MINIFY_OPTIONS.merge(options)
-        fail 'Must have a base dir' unless opts[:base_dir]
-        fail 'Must have a base url' unless opts[:base_url]
-        opts[:filename] = random_name unless opts[:filename]
+      def minified_styles(options)
+        fail 'Must have a base dir' unless options[:base_dir]
+        fail 'Must have a base url' unless options[:base_url]
+        options[:filename] = random_name unless options[:filename]
         require 'set'
         minified_styles = Set.new
         styles = Set.new
-        path = File.expand_path(File.join(opts[:base_dir], 'styles', opts[:filename]) + '.min.css')
+        path = File.expand_path(
+                 File.join(options[:base_dir], 'styles', "#{options[:filename]}.min.css")
+               )
         minified_exist = File.exist?(path)
         require 'cssminify'
         compressor = CSSminify.new
         minified = ''
         @component_set.to_a.each do |component|
           component.styles.each do |style|
-            if !remote?(style) || opts[:minify_remotes]
+            if !remote?(style) || options[:minify_remotes]
               next if minified_exist || minified_styles.include?(style)
               data = safe_load(style)
               if data
@@ -116,16 +113,16 @@ module Diversity
         end
         create_minified_file(path, minified) unless minified_exist || minified.empty?
         styles = styles.to_a
-        styles.unshift(minified_url(opts[:base_url], path)) if minified_exist || !minified.empty?
+        styles.unshift(minified_url(options[:base_url], path)) if minified_exist || !minified.empty?
         styles
       end
 
       def scripts
-        @component_set.to_a.map { |comp| comp.scripts }.flatten.uniq
+        @component_set.to_a.map(&:scripts).flatten.uniq
       end
 
       def styles
-        @component_set.to_a.map { |comp| comp.styles }.flatten.uniq
+        @component_set.to_a.map(&:styles).flatten.uniq
       end
 
       private

@@ -181,7 +181,7 @@ module Diversity
           "angular.bootstrap(document,#{settings.angular.to_json});"
 
         # Should we use minification?
-        if @options[:minification][:minify_js] || @options[:minification][:minify_js]
+        if @options[:minification][:minify_css] || @options[:minification][:minify_js]
           minify_options = @options[:minification].dup
           minify_options[:filename] = context[:minify_filename]
         end
