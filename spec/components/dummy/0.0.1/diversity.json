@@ -1,21 +1,16 @@
 {
   "name": "dummy",
   "version": "0.0.1",
-  "type": "object",
   "thumbnail": "dummy.png",
   "angular": "dummy",
   "template": "dummy.html",
-  "partials": {},
   "context": {},
   "style": "css/dummy.css",
-  "themes": [],
   "script": ["js/dummy1.js", "js/dummy2.js"],
   "i18n": {},
   "l10n": {},
-  "fields": {},
-  "options": {},
+  "settings": {},
   "dependencies": {
     "something-special": ">0.0.1"
-  },
-  "assetDir": "assets"
+  }
 }

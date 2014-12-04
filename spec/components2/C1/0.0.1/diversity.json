@@ -1,0 +1,22 @@
+{
+  "name": "C1",
+  "version": "0.0.1",
+  "type": "object",
+  "thumbnail": "",
+  "angular": "",
+  "template": "",
+  "partials": {},
+  "context": {},
+  "style": "",
+  "themes": [],
+  "script": [],
+  "i18n": {},
+  "l10n": {},
+  "fields": {},
+  "settings": {},
+  "dependencies": {
+    "D1": "0.0.1",
+    "D2": "0.0.1",
+    "D3": "0.0.1"
+  }
+}

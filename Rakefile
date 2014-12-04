@@ -8,7 +8,7 @@ end
 desc 'Generate RDoc'
 task :doc do
   sh 'rm -rf doc'
-  sh 'yard'
+  sh 'yard --list-undoc'
 end
 
 desc 'Runs the test suite'

@@ -1,15 +1,10 @@
 {
   "name": "something-special",
   "version": "0.5.5",
-  "type": "object",
-  "partials": {},
   "context": {},
-  "themes": [],
   "script": [],
   "i18n": {},
   "l10n": {},
-  "fields": {},
-  "options": "schema.json",
-  "dependencies": {},
-  "assetDir": "assets"
+  "settings": "schema.json",
+  "dependencies": {}
 }
