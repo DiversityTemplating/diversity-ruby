@@ -49,7 +49,7 @@ module Diversity
         begin
           req = $LAST_MATCH_INFO[1]
           version = Gem::Version.new(req)
-        rescue ArgumentError => err
+        rescue ArgumentError
           # Invalid requirement, try again with all wildcards removed
           begin
             req.gsub!(/[^\d\.]/, '')
@@ -78,7 +78,7 @@ module Diversity
     # @param [String] resource A resource, either a file or an URL
     # @return [String|nil]
     def safe_load(resource)
-      resource = "http:#{resource}" if resource[0..1] == '//' # Use HTTP for semi-absolute urls
+      resource = "https:#{resource}" if resource[0..1] == '//' # Use HTTPS for semi-absolute urls
       data = nil
       begin
         Kernel.open(resource, allow_redirections: :safe) do |res|

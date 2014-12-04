@@ -35,10 +35,10 @@ module Diversity
 
     # Renders a component
     #
-    # @param [Diversity::Component] component
-    # @param [Hash]   context   Context to render in.
-    # @param [Hash]   settings  Settings for this component rendering.
-    # @param [Array]  path      Array representing json path from root.
+    # @param [Diversity::Component]       component
+    # @param [Hash]   context             Context to render in.
+    # @param [Hash]   component_settings  Settings for this component rendering.
+    # @param [Array]  path                Array representing json path from root.
     #
     # @return [Hash|String]
     def render(component, context = {}, component_settings = {}, path = [])
@@ -48,7 +48,10 @@ module Diversity
       schema = component.settings.data
 
       # Validate
-      debug("\n\n/#{path.join('/')} - #{component.name}:#{component.version}: #{component_settings.inspect}\n")
+      debug(
+        "\n\n/#{path.join('/')} - #{component.name}:#{component.version}: " \
+        "#{component_settings.inspect}\n"
+      )
       validation = JSON::Validator.fully_validate(schema, component_settings)
       debug("Validation failed:\n#{validation.join("\n")}") unless validation.empty?
 
@@ -57,7 +60,6 @@ module Diversity
 
       render_template(component, context, expanded_settings, path)
     end
-
 
     private
 
@@ -74,19 +76,19 @@ module Diversity
 
           # Get the sub_schema from schema.  This only works with simple schema, should really be
           # done with a json-schema-lib that can expand, chose one-of etc.
-          if schema.key?('properties') and schema['properties'].key?(key)
+          if schema.key?('properties') && schema['properties'].key?(key)
             sub_schema = schema['properties'][key]
           elsif schema.key?('additionalProperties')
             sub_schema = schema['additionalProperties']
           else
-            puts "FAIL: Trying to add setting #{key} to #{last_component} at /#{path.join('/')} " +
-              "in " + JSON.pretty_generate(schema)
+            puts "FAIL: Trying to add setting #{key} to #{last_component} at /#{path.join('/')} " \
+              'in ' + JSON.pretty_generate(schema)
             return component_settings
           end
 
           if sub_schema.key?('format') && sub_schema['format'] == 'diversity'
             # Replace the setting with HTML output from the component
-            version         = sub_settings.key?('version' ) ? sub_settings['version'] : nil
+            version         = sub_settings.key?('version') ? sub_settings['version'] : nil
             subsub_settings = sub_settings.key?('settings') ? sub_settings['settings'] : nil
             sub_component   = get_component(sub_settings['component'], version)
 
@@ -100,7 +102,7 @@ module Diversity
       elsif component_settings.is_a?(Array)
         expanded_settings = []
 
-        # Pick schema for array items from schema items.  ...this is also simplified...
+        # Pick schema for array items from schema items.  …this is also simplified…
         sub_schema = schema['items']
 
         # @todo Check additionalItems
@@ -114,8 +116,8 @@ module Diversity
             next unless sub_settings.is_a?(Hash)
 
             # Replace the setting with HTML output from the component
-            version         = sub_settings.has_key?('version' ) ? sub_settings['version' ] : nil
-            subsub_settings = sub_settings.has_key?('settings') ? sub_settings['settings'] : nil
+            version         = sub_settings.key?('version') ? sub_settings['version'] : nil
+            subsub_settings = sub_settings.key?('settings') ? sub_settings['settings'] : nil
             sub_component   = @options[:registry].get_component(sub_settings['component'], version)
 
             expanded_settings <<
@@ -162,8 +164,9 @@ module Diversity
     # a rendered HTML string.
     #
     # @param [Diversity::Component] component
-    # @param [String] template
-    # @param [Hash] component_settings
+    # @param [Hash]                 context
+    # @param [Hash]                 component_settings
+    # @param [Array]                path
     #
     # @return [String]
     def render_template(component, context, component_settings, path)
@@ -196,8 +199,8 @@ module Diversity
       begin
         mustache_settings[:l10n] = settings.l10n(context[:language])
       rescue Encoding::UndefinedConversionError => e
-        raise Diversity::Exception, "Bad json in l10n of #{component}: #{e}\n" +
-          "We have collected: #{settings.l10n(context[:language]).inspect}\n" +
+        raise Diversity::Exception, "Bad json in l10n of #{component}: #{e}\n" \
+          "We have collected: #{settings.l10n(context[:language]).inspect}\n" \
           "With system encoding: #{Encoding.default_external}"
       end
 
@@ -210,7 +213,7 @@ module Diversity
 
       # Add some tasty Mustache lambdas
       mustache_settings['currency'] =
-        lambda do |text, render|
+        lambda do |text|
           # TODO: Fix currency until we decide how to it
           text.gsub(/currency/, 'SEK')
         end
@@ -224,7 +227,7 @@ module Diversity
         text.gsub(/lang/, context[:language] || 'sv')
       end
 
-      puts "Rendering #{component}\n"# with mustache:\n#{mustache_settings}\n\n"
+      puts "Rendering #{component}\n" # with mustache:\n#{mustache_settings}\n\n"
 
       # Return rendered data
       Mustache.render(template_mustache, mustache_settings)

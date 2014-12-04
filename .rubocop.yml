@@ -1,3 +1,5 @@
+AsciiComments:
+  Enabled: false
 ClassLength:
   Max: 150
 LineLength:
