@@ -4,7 +4,6 @@ require 'eventmachine'
 require 'fiber'
 require 'json'
 require 'json-rpc-client'
-require 'json-schema'
 require 'rake/file_list'
 require 'rubygems/requirement'
 require 'rubygems/version'
@@ -26,7 +25,7 @@ module Diversity
     DEFAULT_OPTIONS = {
       base_url:        nil,
       base_path:       nil,  # Can be set to something more readily readable than base_url
-      skip_validation: false,
+      skip_validation: false
     }
 
     # Cmponent configuration
@@ -58,7 +57,7 @@ module Diversity
       begin
         schema.validate(spec) unless @options[:skip_validation]
       rescue Diversity::Exception => err
-        puts "Bad #{self.base_url}/diversity.json - #{err}\n\n"
+        puts "Bad #{base_url}/diversity.json - #{err}\n\n"
       end
       @raw = parse_config(spec)
       @checksum = Digest::SHA1.hexdigest(dump)
@@ -79,7 +78,7 @@ module Diversity
     # @param [Hash] context Context variables
     # @return [Hash]
     def resolve_context(backend_url, context = {})
-      #client = JsonRpcClient.new(backend_url.to_s, asynchronous_calls: false)
+      # client = JsonRpcClient.new(backend_url.to_s, asynchronous_calls: false)
       resolved_context = {}
 
       resolved_context[:baseUrl] = @options[:base_url] if @options[:base_url]
@@ -91,7 +90,7 @@ module Diversity
           next
         end
 
-        unless settings.has_key?('type')
+        unless settings.key?('type')
           puts "#{self} has context with no type: #{key}"
           resolved_context[key] = settings
           next
@@ -106,8 +105,8 @@ module Diversity
               # Param contains a Mustache template, try to find the value in the context
               normalized = matches[2].strip.to_sym
               fail Diversity::Exception,
-              "No such variable #{normalized}",
-              caller unless context.key?(normalized)
+                   "No such variable #{normalized}",
+                   caller unless context.key?(normalized)
               param.gsub!(matches[0], context[normalized.to_sym].to_s)
             end
             param
@@ -124,50 +123,50 @@ module Diversity
           resolved_context[key] = result
         when 'prerequisite'
           fail Diversity::Exception, "#{self} needs #{key} in context as prerequisite." unless
-            context.has_key?(key)
+            context.key?(key)
 
           resolved_context[key] = context[key]
         else
           fail Diversity::Exception,
-            "#{self} has context #{key} of unhandled type: #{settings['type']}"
+               "#{self} has context #{key} of unhandled type: #{settings['type']}"
         end
       end
       context.keep_merge(resolved_context)
     end
 
-    def <(other_component)
-      (self<=>(other_component)) == -1
+    def <(other)
+      (self <=> (other)) == -1
     end
 
-    def <=(other_component)
-      (self<=>(other_component)) != 1
+    def <=(other)
+      (self <=> (other)) != 1
     end
 
-    def >(other_component)
-      (self<=>(other_component)) == 1
+    def >(other)
+      (self <=> (other)) == 1
     end
 
-    def >=(other_component)
-      (self<=>(other_component)) != -1
+    def >=(other)
+      (self <=> (other)) != -1
     end
 
-    def <=>(other_component)
-      return 0 unless other_component.is_a?(Diversity::Component)
-      return @configuration.name <=> other_component.name if
-        @configuration.name != other_component.name
+    def <=>(other)
+      return 0 unless other.is_a?(Diversity::Component)
+      return @configuration.name <=> other.name if
+        @configuration.name != other.name
       # Return newer versions before older ones
-      other_component.version <=> @configuration.version
+      other.version <=> @configuration.version
     end
 
-    def ==(other_component)
-      return false unless other_component.is_a?(Diversity::Component)
-      @checksum == other_component.checksum
+    def ==(other)
+      return false unless other.is_a?(Diversity::Component)
+      @checksum == other.checksum
     end
 
     def get_asset(path)
       return @assets[path] if @assets.key?(path)
 
-      if (@options[:base_path])
+      if @options[:base_path]
         full_path = File.join(@options[:base_path], path)
       else
         full_path = "#{@options[:base_url]}/#{path}"
@@ -214,7 +213,7 @@ module Diversity
       begin
         JSON.parse(data, symbolize_names: false)
       rescue JSON::ParserError
-        raise Diversity::Exception, "Failed to parse configuration", caller
+        raise Diversity::Exception, 'Failed to parse configuration', caller
       end
     end
 
@@ -241,7 +240,8 @@ module Diversity
         @configuration.settings = JsonSchema.new({}, nil)
       end
       @configuration.angular = hsh.fetch('angular', nil)
-      @configuration.angular = @configuration.name if @configuration.angular == true # If set to true, use component name
+      # If set to true, use component name
+      @configuration.angular = @configuration.name if @configuration.angular == true
       @configuration.partials = hsh.fetch('partials', {})
       @configuration.themes = Rake::FileList.new(hsh.fetch('themes', []))
       @configuration.fields = hsh.fetch('fields', {})

@@ -1,3 +1,4 @@
+# coding: utf-8
 require 'English'
 require 'open-uri'
 require 'open_uri_redirections'
@@ -48,13 +49,13 @@ module Diversity
         begin
           req = $LAST_MATCH_INFO[1]
           version = Gem::Version.new(req)
-        rescue ArgumentError => err
+        rescue ArgumentError
           # Invalid requirement, try again with all wildcards removed
           begin
             req.gsub!(/[^\d\.]/, '')
             version = version = Gem::Version.new(req)
           rescue ArgumentError
-            fail Diversity::Exception, "Invalid requirement #{req}"
+            raise Diversity::Exception, "Invalid requirement #{req}"
           end
         end
         if version < Gem::Version.new('0.1.0')
@@ -77,6 +78,7 @@ module Diversity
     # @param [String] resource A resource, either a file or an URL
     # @return [String|nil]
     def safe_load(resource)
+      resource = "https:#{resource}" if resource[0..1] == '//' # Use HTTPS for semi-absolute urls
       data = nil
       begin
         Kernel.open(resource, allow_redirections: :safe) do |res|
@@ -84,7 +86,6 @@ module Diversity
           # so lets pretend that all data is UTF-8 regardless of what
           # the original source claims
           if res.external_encoding != Encoding::UTF_8
-            #puts "Reading from #{resource} (#{res.external_encoding.name}) as UTF-8"
             res.set_encoding(Encoding::UTF_8)
           end
           data = res.read
