@@ -12,9 +12,13 @@ module Diversity
     # Default options for engine
     DEFAULT_OPTIONS = {
       backend_url: nil, # Optional, might be overridden in render
-      minify_base_dir: File.join(Dir.tmpdir, 'diversity', 'minified'),
-      minify_css: false,
-      minify_js: false,
+      minification: { # Only used when minification is active
+        base_dir: File.join(Dir.tmpdir, 'diversity', 'minified'),
+        base_url: '/minified',
+        minify_css: false,
+        minify_js: false,
+        minify_remotes: false
+      },
       registry: nil
     }
 
@@ -27,12 +31,14 @@ module Diversity
         @options[:registry].is_a?(Registry::Base)
     end
 
+    attr_reader :options
+
     # Renders a component
     #
-    # @param [Diversity::Component] component
-    # @param [Hash]   context   Context to render in.
-    # @param [Hash]   settings  Settings for this component rendering.
-    # @param [Array]  path      Array representing json path from root.
+    # @param [Diversity::Component]       component
+    # @param [Hash]   context             Context to render in.
+    # @param [Hash]   component_settings  Settings for this component rendering.
+    # @param [Array]  path                Array representing json path from root.
     #
     # @return [Hash|String]
     def render(component, context = {}, component_settings = {}, path = [])
@@ -42,18 +48,18 @@ module Diversity
       schema = component.settings.data
 
       # Validate
-      debug("\n\n/#{path.join('/')} - #{component.name}:#{component.version}: #{component_settings.inspect}\n")
+      debug(
+        "\n\n/#{path.join('/')} - #{component.name}:#{component.version}: " \
+        "#{component_settings.inspect}\n"
+      )
       validation = JSON::Validator.fully_validate(schema, component_settings)
       debug("Validation failed:\n#{validation.join("\n")}") unless validation.empty?
 
       # Traverse the component_settings to expand sub-components
       expanded_settings = expand_settings(schema, component_settings, context, path, component)
 
-      html = render_template(component, context, expanded_settings)
-      #debug("Rendered: #{html}\n")
-      html
+      render_template(component, context, expanded_settings, path)
     end
-
 
     private
 
@@ -70,20 +76,20 @@ module Diversity
 
           # Get the sub_schema from schema.  This only works with simple schema, should really be
           # done with a json-schema-lib that can expand, chose one-of etc.
-          if schema.has_key?('properties') and schema['properties'].has_key?(key)
+          if schema.key?('properties') && schema['properties'].key?(key)
             sub_schema = schema['properties'][key]
-          elsif schema.has_key?('additionalProperties')
+          elsif schema.key?('additionalProperties')
             sub_schema = schema['additionalProperties']
           else
-            puts "FAIL: Trying to add setting #{key} to #{last_component} at /#{path.join('/')} " +
-              "in " + JSON.pretty_generate(schema)
+            puts "FAIL: Trying to add setting #{key} to #{last_component} at /#{path.join('/')} " \
+              'in ' + JSON.pretty_generate(schema)
             return component_settings
           end
 
-          if sub_schema.has_key?('format') and sub_schema['format'] == 'diversity'
+          if sub_schema.key?('format') && sub_schema['format'] == 'diversity'
             # Replace the setting with HTML output from the component
-            version         = sub_settings.has_key?('version' ) ? sub_settings['version' ] : nil
-            subsub_settings = sub_settings.has_key?('settings') ? sub_settings['settings'] : nil
+            version         = sub_settings.key?('version') ? sub_settings['version'] : nil
+            subsub_settings = sub_settings.key?('settings') ? sub_settings['settings'] : nil
             sub_component   = get_component(sub_settings['component'], version)
 
             expanded_settings[key] =
@@ -105,18 +111,17 @@ module Diversity
           sub_path = path.clone
           sub_path  << index
 
-          if sub_schema.has_key?('format') and sub_schema['format'] == 'diversity'
+          if sub_schema.key?('format') && sub_schema['format'] == 'diversity'
             # Ignore bad settings; they are warned about in schema validation.
             next unless sub_settings.is_a?(Hash)
 
             # Replace the setting with HTML output from the component
-            version         = sub_settings.has_key?('version' ) ? sub_settings['version' ] : nil
-            subsub_settings = sub_settings.has_key?('settings') ? sub_settings['settings'] : nil
+            version         = sub_settings.key?('version') ? sub_settings['version'] : nil
+            subsub_settings = sub_settings.key?('settings') ? sub_settings['settings'] : nil
             sub_component   = @options[:registry].get_component(sub_settings['component'], version)
 
             expanded_settings <<
               { componentHTML: render(sub_component, context, subsub_settings, sub_path) }
-            #debug("Rendered: #{expanded_settings.last}")
           else
             expanded_settings << expand_settings(sub_schema, sub_settings, context, sub_path)
           end
@@ -159,43 +164,43 @@ module Diversity
     # a rendered HTML string.
     #
     # @param [Diversity::Component] component
-    # @param [String] template
-    # @param [Hash] component_settings
+    # @param [Hash]                 context
+    # @param [Hash]                 component_settings
+    # @param [Array]                path
     #
     # @return [String]
-    def render_template(component, context, component_settings)
-
+    def render_template(component, context, component_settings, path)
       mustache_settings = {}
       mustache_settings[:settings]     = component_settings
       mustache_settings[:settingsJSON] =
         component_settings.to_json.gsub(/<\/script>/i, '<\\/script>')
 
-      # Add angularBootstrap, scripts and styles for this level.
-      mustache_settings['angularBootstrap'] =
-        "angular.bootstrap(document,#{settings.angular.to_json});"
-      if @options[:minify_js]
-        mustache_settings['scripts'] = settings.minified_scripts(
-                                         @options[:minify_base_dir],
-                                         context[:theme_id],
-                                         context[:theme_timestamp]
-                                       )
-      else
-        mustache_settings['scripts'] = settings.scripts
-      end
-      if @options[:minify_css]
-        mustache_settings['styles'] = settings.minified_styles(
-                                        @options[:minify_base_dir],
-                                        context[:theme_id],
-                                        context[:theme_timestamp]
-                                      )
-      else
-        mustache_settings['styles' ] = settings.styles
+      # Add angularBootstrap, scripts and styles (top level only)
+      if path.empty?
+        mustache_settings['angularBootstrap'] =
+          "angular.bootstrap(document,#{settings.angular.to_json});"
+
+        # Should we use minification?
+        if @options[:minification][:minify_css] || @options[:minification][:minify_js]
+          minify_options = @options[:minification].dup
+          minify_options[:filename] = context[:minify_filename]
+        end
+        if @options[:minification][:minify_js]
+          mustache_settings['scripts'] = settings.minified_scripts(minify_options)
+        else
+          mustache_settings['scripts'] = settings.scripts
+        end
+        if @options[:minification][:minify_css]
+          mustache_settings['styles'] = settings.minified_styles(minify_options)
+        else
+          mustache_settings['styles'] = settings.styles
+        end
       end
       begin
         mustache_settings[:l10n] = settings.l10n(context[:language])
       rescue Encoding::UndefinedConversionError => e
-        fail Diversity::Exception, "Bad json in l10n of #{component}: #{e}\n" +
-          "We have collected: #{settings.l10n(context[:language]).inspect}\n" +
+        raise Diversity::Exception, "Bad json in l10n of #{component}: #{e}\n" \
+          "We have collected: #{settings.l10n(context[:language]).inspect}\n" \
           "With system encoding: #{Encoding.default_external}"
       end
 
@@ -208,7 +213,7 @@ module Diversity
 
       # Add some tasty Mustache lambdas
       mustache_settings['currency'] =
-        lambda do |text, render|
+        lambda do |text|
           # TODO: Fix currency until we decide how to it
           text.gsub(/currency/, 'SEK')
         end
@@ -222,7 +227,7 @@ module Diversity
         text.gsub(/lang/, context[:language] || 'sv')
       end
 
-      puts "Rendering #{component}\n"# with mustache:\n#{mustache_settings}\n\n"
+      puts "Rendering #{component}\n" # with mustache:\n#{mustache_settings}\n\n"
 
       # Return rendered data
       Mustache.render(template_mustache, mustache_settings)

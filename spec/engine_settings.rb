@@ -57,13 +57,18 @@ describe 'Engine::Settings' do
     comp = registry.get_component('weak-sauce')
     engine.render(comp)
     scripts = engine.send(:settings).minified_scripts(
-      Dir.tmpdir, 7, Time.new(2014, 11, 11), false
+      base_dir: Dir.tmpdir,
+      base_url: '/minified',
+      filename: "7-#{Time.new(2014, 11, 11).to_i}",
+      minify_remotes: false
     )
     scripts.length.should.equal(3)
     scripts[0].should.equal('https://dummy.domain/components/dummy/0.0.1/js/dummy1.js')
     scripts[1].should.equal('https://dummy.domain/components/dummy/0.0.1/js/dummy2.js')
     scripts[2].should.equal('https://dummy.domain/components/weak-sauce/0.0.4/weak_sauce.js')
-    path = File.expand_path(File.join(Dir.tmpdir, 'scripts', "7-#{Time.new(2014, 11, 11).to_i}"))
+    path = File.expand_path(
+             File.join(Dir.tmpdir, 'scripts', "7-#{Time.new(2014, 11, 11).to_i}.min.js")
+           )
     File.exist?(path).should.equal(false)
     File.unlink(path) if File.exist?(path)
   end
@@ -77,11 +82,16 @@ describe 'Engine::Settings' do
     comp = registry.get_component('weak-sauce')
     engine.render(comp)
     scripts = engine.send(:settings).minified_scripts(
-      Dir.tmpdir, 7, Time.new(2014, 11, 11), false
+      base_dir: Dir.tmpdir,
+      base_url: '/minified',
+      filename: "7-#{Time.new(2014, 11, 11).to_i}",
+      minify_remotes: false
     )
     scripts.length.should.equal(1)
-    path = File.expand_path(File.join(Dir.tmpdir, 'scripts', "7-#{Time.new(2014, 11, 11).to_i}"))
-    scripts[0].should.equal(path)
+    path = File.expand_path(
+             File.join(Dir.tmpdir, 'scripts', "7-#{Time.new(2014, 11, 11).to_i}.min.js")
+           )
+    scripts[0].should.equal(path.gsub(Dir.tmpdir, '/minified'))
     File.exist?(path).should.equal(true)
     File.unlink(path) if File.exist?(path)
   end
@@ -108,11 +118,16 @@ describe 'Engine::Settings' do
     comp = registry.get_component('weak-sauce')
     engine.render(comp)
     styles = engine.send(:settings).minified_styles(
-      Dir.tmpdir, 7, Time.new(2014, 11, 11), false
+      base_dir: Dir.tmpdir,
+      base_url: '/minified',
+      filename: "7-#{Time.new(2014, 11, 11).to_i}",
+      minify_remotes: false
     )
     styles.length.should.equal(1)
     styles[0].should.equal('https://dummy.domain/components/dummy/0.0.1/css/dummy.css')
-    path = File.expand_path(File.join(Dir.tmpdir, 'styles', "7-#{Time.new(2014, 11, 11).to_i}"))
+    path = File.expand_path(
+             File.join(Dir.tmpdir, 'styles', "7-#{Time.new(2014, 11, 11).to_i}.min.css")
+           )
     File.exist?(path).should.equal(false)
     File.unlink(path) if File.exist?(path)
   end
@@ -126,11 +141,16 @@ describe 'Engine::Settings' do
     comp = registry.get_component('weak-sauce')
     engine.render(comp)
     styles = engine.send(:settings).minified_styles(
-      Dir.tmpdir, 7, Time.new(2014, 11, 11), false
+      base_dir: Dir.tmpdir,
+      base_url: '/minified',
+      filename: "7-#{Time.new(2014, 11, 11).to_i}",
+      minify_remotes: false
     )
     styles.length.should.equal(1)
-    path = File.expand_path(File.join(Dir.tmpdir, 'styles', "7-#{Time.new(2014, 11, 11).to_i}"))
-    styles[0].should.equal(path)
+    path = File.expand_path(
+             File.join(Dir.tmpdir, 'styles', "7-#{Time.new(2014, 11, 11).to_i}.min.css")
+           )
+    styles[0].should.equal(path.gsub(Dir.tmpdir, '/minified'))
     File.exist?(path).should.equal(true)
     File.unlink(path) if File.exist?(path)
   end
