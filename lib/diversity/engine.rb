@@ -111,6 +111,9 @@ module Diversity
           sub_path = path.clone
           sub_path  << index
 
+          # Ignore bad settings; they are warned about in schema validation.
+          next unless sub_schema.is_a?(Hash)
+
           if sub_schema.key?('format') && sub_schema['format'] == 'diversity'
             # Ignore bad settings; they are warned about in schema validation.
             next unless sub_settings.is_a?(Hash)
