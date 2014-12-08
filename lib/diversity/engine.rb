@@ -45,18 +45,18 @@ module Diversity
       settings.add_component(component)
 
       # Get component schema
-      schema = component.settings.data
+      schema = component.settings
 
       # Validate
       debug(
         "\n\n/#{path.join('/')} - #{component.name}:#{component.version}: " \
         "#{component_settings.inspect}\n"
       )
-      validation = JSON::Validator.fully_validate(schema, component_settings)
+      validation = schema.validate(component_settings)
       debug("Validation failed:\n#{validation.join("\n")}") unless validation.empty?
 
       # Traverse the component_settings to expand sub-components
-      expanded_settings = expand_settings(schema, component_settings, context, path, component)
+      expanded_settings = expand_settings(schema.data, component_settings, context, path, component)
 
       render_template(component, context, expanded_settings, path)
     end

@@ -7,10 +7,11 @@ module Diversity
 
     attr_reader :data, :source
 
-    def initialize(data, source = nil)
+    def initialize(data, source = nil, options = {})
       fail 'First parameter must be a hash' unless data.is_a?(Hash)
       @data = data
       @source = source
+      @options = options
     end
 
     # Returns the current object as a JSON string
@@ -117,9 +118,10 @@ module Diversity
     # @param [Hash] data
     # @param [String] source
     # @param [Class] klass
-    def self.[](data, source = nil, klass = JsonObject)
+    # @param [Hash] options
+    def self.[](data, source = nil, klass = JsonObject, options = {})
       fail 'Must be a subclass of Diversity::JsonObject' unless klass <= JsonObject
-      klass.new(data, source)
+      klass.new(data, source, options)
     end
 
     def self.traverse(data, path = [], &block)

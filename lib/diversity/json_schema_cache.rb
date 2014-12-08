@@ -17,11 +17,13 @@ module Diversity
     # Returns the JSON schema denoted by key
     #
     # @param [String] key
+    # @param [Hash] options
     # @return Diversity::JsonSchema
-    def self.[](key)
-      return @cache[key] if @cache.key?(key)
-      @cache[key] = load_json(key, JsonSchema)
-      @cache[key]
+    def self.[](key, options = {})
+      cache_key = "#{key}##{Digest::MD5.hexdigest(options.to_s)}"
+      return @cache[cache_key] if @cache.key?(cache_key)
+      @cache[cache_key] = load_json(key, JsonSchema, options)
+      @cache[cache_key]
     end
 
     # Purges one (or all) items from the cache

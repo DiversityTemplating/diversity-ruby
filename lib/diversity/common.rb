@@ -99,12 +99,13 @@ module Diversity
 
     # Loads a JSON resource, parses it and returns a Diversity::JsonObject
     #
-    # @param[String] resource
-    # @param[Class] klass
-    def load_json(resource, klass = JsonObject)
+    # @param [String] resource
+    # @param [Class] klass
+    # @param [Hash] options
+    def load_json(resource, klass = JsonObject, options = {})
       fail "Failed to load JSON from #{resource}" unless (data = safe_load(resource))
       begin
-        JsonObject[JSON.parse(data, symbolize_names: false), resource, klass]
+        JsonObject[JSON.parse(data, symbolize_names: false), resource, klass, options]
       rescue JSON::ParserError
         raise Diversity::Exception, "Failed to parse schema from #{resource}", caller
       end
