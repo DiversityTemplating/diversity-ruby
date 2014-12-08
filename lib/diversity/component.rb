@@ -53,9 +53,12 @@ module Diversity
       @configuration = Configuration.new
       @options = DEFAULT_OPTIONS.keep_merge(options)
 
-      schema = JsonSchemaCache[MASTER_COMPONENT_SCHEMA]
+      schema = JsonSchemaCache[
+                 MASTER_COMPONENT_SCHEMA,
+                 { skip_validation: @options[:skip_validation] }
+               ]
       begin
-        schema.validate(spec) unless @options[:skip_validation]
+        schema.validate(spec)
       rescue Diversity::Exception => err
         puts "Bad #{base_url}/diversity.json - #{err}\n\n"
       end
@@ -232,12 +235,13 @@ module Diversity
       @configuration.pagetype = hsh.fetch('pagetype', nil)
       @configuration.context = hsh.fetch('context', {})
       settings = hsh.fetch('settings', {})
+      schema_options = @options[:skip_validation] ? { skip_validation: true } : {}
       if settings.is_a?(Hash)
-        @configuration.settings = JsonSchema.new(settings, nil)
+        @configuration.settings = JsonSchema.new(settings, nil, schema_options)
       elsif settings.is_a?(String)
-        @configuration.settings = JsonSchema.new({}, settings)
+        @configuration.settings = JsonSchema.new({}, settings, schema_options)
       else
-        @configuration.settings = JsonSchema.new({}, nil)
+        @configuration.settings = JsonSchema.new({}, nil, schema_options)
       end
       @configuration.angular = hsh.fetch('angular', nil)
       # If set to true, use component name

@@ -1,3 +1,4 @@
+# coding: utf-8
 # https://www.ruby-forum.com/topic/142809
 class Hash
   # Recursive merge of Hash
@@ -11,7 +12,6 @@ class Hash
         next
       end
       target[key] = hash[key]
-      #target.update(hash) { |_, *values| values.flatten.uniq }
     end
     target
   end
