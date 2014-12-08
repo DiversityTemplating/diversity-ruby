@@ -48,36 +48,43 @@ module Diversity
         fail 'Must have a base url' unless options[:base_url]
         options[:filename] = random_name unless options[:filename]
         require 'set'
-        minified_scripts = Set.new
+        scripts_to_minify = Set.new
         scripts = Set.new
         path = File.expand_path(
                  File.join(options[:base_dir], 'scripts', "#{options[:filename]}.min.js")
                )
         minified_exist = File.exist?(path)
-        require 'uglifier'
-        uglifier = Uglifier.new
-        minified = ''
+
+        # Calculate list of script to minify
         @component_set.to_a.each do |component|
           component.scripts.each do |script|
             if !remote?(script) || options[:minify_remotes]
-              next if minified_exist || minified_scripts.include?(script)
-              data = safe_load(script)
-              if data
-                minified << uglifier.compile(data << "\n")
-                minified_scripts << script
-              else
-                p "Failed to load #{script}"
-              end
+              next if minified_exist
+              scripts_to_minify << script
             else
               scripts << script
             end
           end
         end
-        create_minified_file(path, minified) unless minified_exist || minified.empty?
+
         scripts = scripts.to_a
-        scripts.unshift(
-          minified_url(options[:base_url], path)
-        ) if minified_exist || !minified.empty?
+
+        # Load scripts and minify them
+        unless scripts_to_minify.empty?
+          minified_data = parallell_load(scripts_to_minify)
+          unless minified_data.empty?
+            require 'uglifier'
+            uglifier = Uglifier.new
+            minified = ''
+            minified_data.each_value do |val|
+              minified << uglifier.compile(val << "\n")
+            end
+          end
+          create_minified_file(path, minified) unless minified_exist || minified.empty?
+          scripts.unshift(minified_url(options[:base_url], path)) if
+            minified_exist || !minified.empty?
+        end
+
         scripts
       end
 
@@ -86,34 +93,43 @@ module Diversity
         fail 'Must have a base url' unless options[:base_url]
         options[:filename] = random_name unless options[:filename]
         require 'set'
-        minified_styles = Set.new
+        styles_to_minify = Set.new
         styles = Set.new
         path = File.expand_path(
                  File.join(options[:base_dir], 'styles', "#{options[:filename]}.min.css")
                )
         minified_exist = File.exist?(path)
-        require 'cssminify'
-        compressor = CSSminify.new
-        minified = ''
+
+        # Calculate list of styles to minify
         @component_set.to_a.each do |component|
           component.styles.each do |style|
             if !remote?(style) || options[:minify_remotes]
-              next if minified_exist || minified_styles.include?(style)
-              data = safe_load(style)
-              if data
-                minified << compressor.compress(data << "\n")
-                minified_styles << style
-              else
-                p "Failed to load #{style}"
-              end
+              next if minified_exist
+              styles_to_minify << style
             else
               styles << style
             end
           end
         end
-        create_minified_file(path, minified) unless minified_exist || minified.empty?
+
         styles = styles.to_a
-        styles.unshift(minified_url(options[:base_url], path)) if minified_exist || !minified.empty?
+
+        # Load styles and minify them
+        unless styles_to_minify.empty?
+          minified_data = parallell_load(styles_to_minify)
+          unless minified_data.empty?
+            require 'cssminify'
+            compressor = CSSminify.new
+            minified = ''
+            minified_data.each_value do |val|
+              minified << compressor.compress(val << "\n")
+            end
+          end
+          create_minified_file(path, minified) unless minified_exist || minified.empty?
+          styles.unshift(minified_url(options[:base_url], path)) if
+            minified_exist || !minified.empty?
+        end
+
         styles
       end
 
