@@ -5,7 +5,7 @@ module Diversity
   # An ordinary JsonObject blessed with the ability to validate other
   # JsonObjects
   class JsonSchema < JsonObject
-    DEFAULT_OPTIONS = { skip_validation: false }
+    DEFAULT_OPTIONS = { validate_spec: false }
 
     attr_reader :options
 
@@ -20,7 +20,7 @@ module Diversity
     # @return [Array]
     def validate(data)
       # Bail early if validation is turned off
-      return [] if @options[:skip_validation]
+      return [] unless @options[:validate_spec]
       # Automatically convert Diversity::JsonObjects to hashes
       data = data.data if data.is_a?(Diversity::JsonObject)
       require 'json-schema'
