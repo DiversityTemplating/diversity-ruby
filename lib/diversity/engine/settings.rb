@@ -121,6 +121,18 @@ module Diversity
         @component_set.to_a.map(&:scripts).flatten.uniq
       end
 
+      def concatenated_scripts(options = {})
+        fail 'Must have a base dir' unless options[:base_dir]
+        path = File.expand_path(
+          File.join(options[:base_dir], 'scripts', "#{options[:filename]}.concat.js")
+        )
+        return safe_load(path) if File.exist?(path)
+
+        script_data = scripts.each.map {|script| safe_load(script)}.join("\n")
+        create_minified_file(path, script_data)
+        script_data
+      end
+
       def styles
         @component_set.to_a.map(&:styles).flatten.uniq
       end
