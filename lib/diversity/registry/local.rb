@@ -24,7 +24,7 @@ module Diversity
           },
           ttl: 3600
         },
-        skip_validation: false
+        validate_spec: false
       }
 
       GLOB = '*/*/diversity.json'
@@ -83,7 +83,7 @@ module Diversity
 
           spec    = File.read('diversity.json')
           options = {
-            skip_validation: @options[:skip_validation],
+            validate_spec: @options[:validate_spec],
             base_url:        base_url,
             base_path:       dir,
           }

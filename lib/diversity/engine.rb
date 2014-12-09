@@ -19,7 +19,8 @@ module Diversity
         minify_js: false,
         minify_remotes: false
       },
-      registry: nil
+      registry: nil,
+      validate_settings: false
     }
 
     def initialize(options = {})
@@ -47,13 +48,11 @@ module Diversity
       # Get component schema
       schema = component.settings
 
-      # Validate
-      debug(
-        "\n\n/#{path.join('/')} - #{component.name}:#{component.version}: " \
-        "#{component_settings.inspect}\n"
-      )
-      validation = schema.validate(component_settings)
-      debug("Validation failed:\n#{validation.join("\n")}") unless validation.empty?
+      # Validate if told to and someone could see it
+      if @options[:validate_settings]
+        validation = schema.validate(component_settings)
+        debug("Validation failed:\n#{validation.join("\n")}") unless validation.empty?
+      end
 
       # Traverse the component_settings to expand sub-components
       expanded_settings = expand_settings(schema.data, component_settings, context, path, component)

@@ -23,9 +23,9 @@ module Diversity
     attr_reader :checksum, :raw
 
     DEFAULT_OPTIONS = {
-      base_url:        nil,
-      base_path:       nil,  # Can be set to something more readily readable than base_url
-      skip_validation: false
+      base_url:      nil,
+      base_path:     nil,  # Can be set to something more readily readable than base_url
+      validate_spec: false
     }
 
     # Cmponent configuration
@@ -44,7 +44,7 @@ module Diversity
     # Creates a new component
     #
     # @param [String] spec     The diversity.json of the component (as JSON string).
-    # @param [Hash]   options  Options: base_url, skip_validation
+    # @param [Hash]   options  Options: base_url, validate_spec
     #
     # @raise [Diversity::Exception] if the resource cannot be loaded
     #
@@ -55,7 +55,7 @@ module Diversity
 
       schema = JsonSchemaCache[
                  MASTER_COMPONENT_SCHEMA,
-                 { skip_validation: @options[:skip_validation] }
+                 { validate_spec: @options[:validate_spec] }
                ]
       begin
         schema.validate(spec)
@@ -235,7 +235,7 @@ module Diversity
       @configuration.pagetype = hsh.fetch('pagetype', nil)
       @configuration.context = hsh.fetch('context', {})
       settings = hsh.fetch('settings', {})
-      schema_options = @options[:skip_validation] ? { skip_validation: true } : {}
+      schema_options = @options[:validate_spec] ? { validate_spec: true } : {}
       if settings.is_a?(Hash)
         @configuration.settings = JsonSchema.new(settings, nil, schema_options)
       elsif settings.is_a?(String)

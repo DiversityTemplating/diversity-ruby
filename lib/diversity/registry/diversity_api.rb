@@ -23,7 +23,7 @@ module Diversity
           },
           ttl: 3600
         },
-        skip_validation: false
+        validate_spec: false
       }
 
       def initialize(options = {})
@@ -85,7 +85,7 @@ module Diversity
         @cache[cache_key] =
           Component.new(
             spec,
-            { base_url: base_url, skip_validation: @options[:skip_validation] }
+            { base_url: base_url, validate_spec: @options[:validate_spec] }
           )
       end
 
