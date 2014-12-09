@@ -49,7 +49,7 @@ module Diversity
       schema = component.settings
 
       # Validate if told to and someone could see it
-      if (@options[:debug_logger] && @ptions[:validate_settings])
+      if @options[:validate_settings]
         validation = schema.validate(component_settings)
         debug("Validation failed:\n#{validation.join("\n")}") unless validation.empty?
       end
