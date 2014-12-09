@@ -19,7 +19,8 @@ module Diversity
         minify_js: false,
         minify_remotes: false
       },
-      registry: nil
+      registry: nil,
+      validate_settings: false
     }
 
     def initialize(options = {})
