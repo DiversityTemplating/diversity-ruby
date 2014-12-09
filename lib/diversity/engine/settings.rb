@@ -46,12 +46,13 @@ module Diversity
       def minified_scripts(options = {})
         fail 'Must have a base dir' unless options[:base_dir]
         fail 'Must have a base url' unless options[:base_url]
-        options[:filename] = random_name unless options[:filename]
+
+        filename = options[:filename] || Digest::SHA1.hexdigest(scripts.join(';'))
         require 'set'
         minified_scripts = Set.new
         scripts = Set.new
         path = File.expand_path(
-                 File.join(options[:base_dir], 'scripts', "#{options[:filename]}.min.js")
+                 File.join(options[:base_dir], 'scripts', "#{filename}.min.js")
                )
         minified_exist = File.exist?(path)
         require 'uglifier'
@@ -84,12 +85,13 @@ module Diversity
       def minified_styles(options)
         fail 'Must have a base dir' unless options[:base_dir]
         fail 'Must have a base url' unless options[:base_url]
-        options[:filename] = random_name unless options[:filename]
+
+        filename = options[:filename] || Digest::SHA1.hexdigest(styles.join(';'))
         require 'set'
         minified_styles = Set.new
         styles = Set.new
         path = File.expand_path(
-                 File.join(options[:base_dir], 'styles', "#{options[:filename]}.min.css")
+                 File.join(options[:base_dir], 'styles', "#{filename}.min.css")
                )
         minified_exist = File.exist?(path)
         require 'cssminify'
@@ -119,6 +121,20 @@ module Diversity
 
       def scripts
         @component_set.to_a.map(&:scripts).flatten.uniq
+      end
+
+      def concatenated_scripts(options = {})
+        fail 'Must have a base dir' unless options[:base_dir]
+
+        filename = options[:filename] || Digest::SHA1.hexdigest(scripts.join(';'))
+        path = File.expand_path(
+          File.join(options[:base_dir], 'scripts', "#{filename}.concat.js")
+        )
+        return safe_load(path) if File.exist?(path)
+
+        script_data = scripts.each.map {|script| safe_load(script)}.join("\n")
+        create_minified_file(path, script_data)
+        script_data
       end
 
       def styles
@@ -152,14 +168,6 @@ module Diversity
         parts = pt.split(File::SEPARATOR).map { |p| p.empty? ? File::SEPARATOR : p }
         url << parts[-2] << '/' << parts[-1]
         url
-      end
-
-      # Generates a random filename
-      #
-      # @return [String]
-      def random_name
-        require 'securerandom'
-        SecureRandom.urlsafe_base64
       end
     end
   end

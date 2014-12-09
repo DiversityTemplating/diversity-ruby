@@ -187,7 +187,10 @@ module Diversity
           minify_options = @options[:minification].dup
           minify_options[:filename] = context[:minify_filename]
         end
-        if @options[:minification][:minify_js]
+        if @options[:minification][:inline_js]
+          mustache_settings['minifiedJs'] = settings.concatenated_scripts(minify_options).
+            gsub(/<\/script>/i, '<\\/script>')
+        elsif @options[:minification][:minify_js]
           mustache_settings['scripts'] = settings.minified_scripts(minify_options)
         else
           mustache_settings['scripts'] = settings.scripts
