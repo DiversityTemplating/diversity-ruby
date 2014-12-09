@@ -47,7 +47,7 @@ module Diversity
         fail 'Must have a base dir' unless options[:base_dir]
         fail 'Must have a base url' unless options[:base_url]
 
-        filename = Digest::SHA1.hexdigest(scripts.join(';'))
+        filename = options[:filename] || Digest::SHA1.hexdigest(scripts.join(';'))
         require 'set'
         minified_scripts = Set.new
         scripts = Set.new
@@ -86,7 +86,7 @@ module Diversity
         fail 'Must have a base dir' unless options[:base_dir]
         fail 'Must have a base url' unless options[:base_url]
 
-        filename = Digest::SHA1.hexdigest(styles.join(';'))
+        filename = options[:filename] || Digest::SHA1.hexdigest(styles.join(';'))
         require 'set'
         minified_styles = Set.new
         styles = Set.new
@@ -126,7 +126,7 @@ module Diversity
       def concatenated_scripts(options = {})
         fail 'Must have a base dir' unless options[:base_dir]
 
-        filename = Digest::SHA1.hexdigest(scripts.join(';'))
+        filename = options[:filename] || Digest::SHA1.hexdigest(scripts.join(';'))
         path = File.expand_path(
           File.join(options[:base_dir], 'scripts', "#{filename}.concat.js")
         )
