@@ -132,7 +132,7 @@ module Diversity
         )
         return safe_load(path) if File.exist?(path)
 
-        script_data = scripts.each.map {|script| safe_load(script)}.join("\n")
+        script_data = scripts.each.map {|script| "/* #{script} */\n#{safe_load(script)}"}.join("\n")
         create_minified_file(path, script_data)
         script_data
       end
