@@ -59,10 +59,10 @@ module Diversity
                ]
       begin
         schema.validate(spec)
+        @raw = parse_config(spec)
       rescue Diversity::Exception => err
         puts "Bad #{base_url}/diversity.json - #{err}\n\n"
       end
-      @raw = parse_config(spec)
       @checksum = Digest::SHA1.hexdigest(dump)
       @assets = {}
       populate(@raw)
