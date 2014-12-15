@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 require 'mustache'
+require 'tmpdir'
 require_relative 'engine/settings'
 
 module Diversity
