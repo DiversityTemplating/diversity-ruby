@@ -111,6 +111,20 @@ describe 'Component' do
       .should.match(/Failed to parse configuration/)
   end
 
+  should 'fail when config does not validate against diversity schema' do
+    ->() { Diversity::Component.new('{}', {validate_spec: true}) }
+      .should.raise(Diversity::Exception).message
+      .should.match(
+        /The property '#\/' did not contain a required property of 'name' in schema/
+      )
+  end
+
+  should 'NOT fail when config should not be validated against diversity schema' do
+    # Should not raise error.
+    Diversity::Component.new('{}', {validate_spec: false})
+      .class.should.equal(Diversity::Component)
+  end
+
 =begin
   # This test should be reenabled when when validation is enabled again
   should 'fail when settings file cannot be parsed as valid JSON' do

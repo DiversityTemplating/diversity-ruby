@@ -58,8 +58,12 @@ module Diversity
                  { validate_spec: @options[:validate_spec] }
                ]
 
-      schema.validate(spec)
       @raw = parse_config(spec)
+
+      validation = schema.validate(@raw)
+      raise Diversity::Exception, "Configuration is not valid:\n" + validation.join("\n"), caller if
+        validation.length > 0
+
       @checksum = Digest::SHA1.hexdigest(dump)
       @assets = {}
       populate(@raw)
