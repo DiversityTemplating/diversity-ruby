@@ -176,34 +176,30 @@ describe 'Component' do
 
 end
 
-=begin
-# Fix later
 describe 'Engine' do
-  should 'be able to render a simple component' do
-    registry_path = File.expand_path(Dir.mktmpdir)
-    begin
-      registry = Diversity::Registry::Local.new(registry_path)
-      registry.install_component(
-        'http://diversity.io/textalk-webshop-native-components/tws-custom-html/raw/master/diversity.json'
-      )
-      component = registry.get_component('tws-custom-html')
-      engine = Diversity::Engine.new({registry: registry})
-      context = {'lang' => 'sv'}
-      settings = Diversity::JsonObject.new(
-        {
-          'custom_html' => {
-            'lang' => {
-              'en' => "<p>I'm a custom component!</p>",
-              'sv' => "<p>Jag är en anpassad component!</p>"
-            }
-          }
+  should 'render sub-components from registry when used in settings' do
+    registry_path = File.expand_path(File.join(File.dirname(__FILE__), 'components_for_engine'))
+    registry = Diversity::Registry::Local.new(
+      base_path: registry_path,
+      base_url:  'fubar:',
+    )
+
+    component = registry.get_component('toponent')
+
+    engine = Diversity::Engine.new({registry: registry})
+    #context = {'lang' => 'sv'}
+    settings = {
+      'sub_object' => {
+        'component' => 'sub_one',
+        'version'   => '1.1',
+        'settings' => {
+          'title' => 'FUBAR'
         }
-      )
-      engine.render(component, context, settings).inspect
-      true.should.equal(true)
-    ensure
-      FileUtils.remove_entry_secure registry_path
-    end
+      }
+    }
+
+    engine.render(component, {}, settings).should.equal(
+      "Here is a title: ·:·FUBAR·:·\n.\n"
+    )
   end
 end
-=end

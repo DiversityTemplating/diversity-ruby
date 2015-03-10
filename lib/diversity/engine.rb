@@ -42,7 +42,7 @@ module Diversity
     # @param [Hash]   component_settings  Settings for this component rendering.
     # @param [Array]  path                Array representing json path from root.
     #
-    # @return [Hash|String]
+    # @return [String]
     def render(component, context = {}, component_settings = {}, path = [])
       settings.add_component(component)
 
@@ -155,8 +155,8 @@ module Diversity
 
     def get_component(name, version = nil)
       component = @options[:registry].get_component(name, version)
-      fail "No component from #{sub_settings['component']}" unless sub_component
-      settings.add_component(component)
+      fail "No component from #{sub_settings['component']}" unless component
+      component
     end
 
     class << self

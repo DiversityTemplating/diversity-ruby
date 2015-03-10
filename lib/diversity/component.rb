@@ -57,12 +57,9 @@ module Diversity
                  MASTER_COMPONENT_SCHEMA,
                  { validate_spec: @options[:validate_spec] }
                ]
-      begin
-        schema.validate(spec)
-        @raw = parse_config(spec)
-      rescue Diversity::Exception => err
-        puts "Bad #{base_url}/diversity.json - #{err}\n\n"
-      end
+
+      schema.validate(spec)
+      @raw = parse_config(spec)
       @checksum = Digest::SHA1.hexdigest(dump)
       @assets = {}
       populate(@raw)
