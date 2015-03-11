@@ -48,9 +48,6 @@ module Diversity
       end
 
       def get_component(name, version = nil)
-        cache_key = "component:#{name}:#{version}"
-        return @cache[cache_key] if @cache.key?(cache_key)
-
         requirement =
           (version.nil? or version == '*') ? Gem::Requirement.default :
           version.is_a?(Gem::Requirement)  ? version                  :
@@ -59,8 +56,7 @@ module Diversity
         begin
           versions = get_installed_versions(name)
         rescue
-          # If the component isn't available by diversity api, let someone else try.
-          return super
+          fail "Failed to get versions"
         end
         version_path = versions.
           select {|version_obj| requirement.satisfied_by?(version_obj) }.
@@ -82,11 +78,10 @@ module Diversity
         spec = safe_load("#{base_url}/diversity.json")
         #puts "Got spec from #{name}:#{version_path} on #{base_url}:\n#{spec}"
 
-        @cache[cache_key] =
-          Component.new(
-            spec,
-            { base_url: base_url, validate_spec: @options[:validate_spec] }
-          )
+        Component.new(
+          spec,
+          { base_url: base_url, validate_spec: @options[:validate_spec] }
+        )
       end
 
       def cache_contains?(url)
@@ -113,6 +108,7 @@ module Diversity
           url = File.join(url, part)
         end
         return @cache[url] if @cache.key?(url)
+
         response = Unirest.get(url)
         fail "Error when calling API on #{url}: #{response.inspect}" unless response.code == 200
         fail 'Invalid content type' unless response.headers[:content_type] == 'application/json'
@@ -125,9 +121,6 @@ module Diversity
       # @param [String] component_name
       # @return [Array]
       def get_installed_versions(component_name)
-        cache_key = "component-versions:#{component_name}"
-        return @cache[cache_key] if @cache.key?(cache_key)
-
         version_objs = []
         versions = call_api('components', component_name)
         versions.each do |version|
@@ -138,9 +131,6 @@ module Diversity
           end
         end
         version_objs.sort
-        # TODO: Talk to David about default versions
-        # version_objs << Gem::Version.new('0.0.1') if version_objs.empty?
-        @cache[cache_key] = version_objs
       end
 
       # Checks whether the diversity API is live and kicking.
