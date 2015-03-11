@@ -97,7 +97,6 @@ module Diversity
         @cache = Moneta.build do
           use     :Expires, expires: expires if expires
           use     :Transformer, transformer_options unless transformer_options.empty?
-          use     :Logger
           adapter options[:adapter], options[:adapter_options]
         end
         nil
