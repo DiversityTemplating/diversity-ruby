@@ -56,7 +56,7 @@ module Diversity
         begin
           versions = get_installed_versions(name)
         rescue
-          fail "Failed to get versions"
+          return nil
         end
         version_path = versions.
           select {|version_obj| requirement.satisfied_by?(version_obj) }.
