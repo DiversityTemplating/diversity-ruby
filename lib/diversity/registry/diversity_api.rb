@@ -1,3 +1,4 @@
+# coding: utf-8
 require 'addressable/uri'
 require 'json'
 require 'unirest'
