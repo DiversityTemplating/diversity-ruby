@@ -8,13 +8,12 @@
 # @param [String] component
 # @param [nil|String|Gem::Requirement|Gem::Version] version
 # @return [Diversity::Component|nil]
-# @alias get
 #
 # If version is nil, the highest version of the component will be returned.
 # If version is a Gem::Version, that specific version will be returned.
 # If version is a String or a Gem::Requirement, the highest version that satisfies the requirement
 # is returned.
-def [](component, version = nil)
+def get(component, version = nil)
 end
 ```
 
