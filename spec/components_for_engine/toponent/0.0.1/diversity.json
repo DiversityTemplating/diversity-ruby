@@ -1,0 +1,14 @@
+{
+  "name": "toponent",
+  "version": "0.0.1",
+  "template": "template.html",
+  "settings": {
+    "type": "object",
+    "properties": {
+      "sub_object": {
+        "type": "object",
+        "format": "diversity"
+      }
+    }
+  }
+}
