@@ -94,11 +94,12 @@ module Diversity
             transformer_options[:value] = options[:transformer][:value]
           end
         end
+        adapter_class = options[:adapter].to_sym
+        adapter_options = options[:adapter_options].is_a?(Hash) ? options[:adapter_options] : {}
         @cache = Moneta.build do
-          use     :Expires, expires: expires if expires
-          use     :Transformer, transformer_options unless
-            transformer_options.empty?
-          adapter options[:adapter], options[:adapter_options]
+          use :Expires, expires: expires if expires
+          use :Transformer, transformer_options unless transformer_options.empty?
+          adapter adapter_class, adapter_options
         end
         nil
       end
