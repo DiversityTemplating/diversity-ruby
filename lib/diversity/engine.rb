@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 require 'mustache'
 require 'tmpdir'
+require_relative 'cache/fragment_cache'
 require_relative 'engine/settings'
 
 module Diversity
@@ -31,6 +32,8 @@ module Diversity
       # Ensure that we have a valid registry to work against
       fail 'Cannot run engine without a valid registry!' unless
         @options[:registry].is_a?(Registry::Base)
+
+      @fragment_cache = Cache::FragmentCache.new
     end
 
     attr_reader :options
@@ -173,6 +176,9 @@ module Diversity
     #
     # @return [String]
     def render_template(component, context, component_settings, path)
+      cache_key = [component.checksum, context, component_settings]
+      return @fragment_cache.load(cache_key) if @fragment_cache.key?(cache_key)
+
       mustache_settings = {}
       mustache_settings[:settings]     = component_settings
       mustache_settings[:settingsJSON] =
@@ -236,7 +242,7 @@ module Diversity
       puts "Rendering #{component}\n" # with mustache:\n#{mustache_settings}\n\n"
 
       # Return rendered data
-      Mustache.render(template_mustache, mustache_settings)
+      @fragment_cache.store(cache_key, Mustache.render(template_mustache, mustache_settings))
     end
   end
 end
