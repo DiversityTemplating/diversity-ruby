@@ -82,26 +82,49 @@ module Diversity
       # @return [nil]
       def init_cache(options)
         require 'moneta'
-        expires = options.key?(:ttl) ? options[:ttl] : nil
-        transformer_options = []
+        expires = options.fetch(:ttl, nil)
+        transformer_options = {}
         if options.key?(:transformer)
           if options[:transformer].key?(:key) &&
              !options[:transformer][:key].empty?
-            transformer_options[:key] = options[:transformer][:key]
+            transformer_options[:key] = options[:transformer][:key].map! { |e| e.to_sym }
           end
           if options[:transformer].key?(:value) &&
              !options[:transformer][:value].empty?
-            transformer_options[:value] = options[:transformer][:value]
+            transformer_options[:value] = options[:transformer][:value].map! { |e| e.to_sym }
           end
         end
         adapter_class = options[:adapter].to_sym
-        adapter_options = options[:adapter_options].is_a?(Hash) ? options[:adapter_options] : {}
+        adapter_options = options.fetch(:adapter_options, {})
+        shared = options.fetch(:shared, false)
+        cache_init_messages = []
         @cache = Moneta.build do
-          use :Expires, expires: expires if expires
-          use :Transformer, transformer_options unless transformer_options.empty?
-          adapter adapter_class, adapter_options
+          cache_init_messages << 'Initializing cache'
+          if expires
+            cache_init_messages << "  - Cache entries will expire in #{expires.inspect} seconds"
+            use :Expires, expires: expires
+          end
+          unless transformer_options.empty?
+            cache_init_messages << "  - Using transformer settings #{transformer_options.inspect}"
+            use :Transformer, transformer_options
+          end
+          if shared
+            cache_init_messages << "  - Using adapter #{adapter_class.inspect} in shared mode"
+            use :Shared do
+              adapter adapter_class, adapter_options
+            end
+          else
+            cache_init_messages << "  - Using adapter #{adapter_class.inspect} in standalone mode"
+            adapter adapter_class, adapter_options
+          end
+          cache_init_messages << "  - Using adapter settings #{adapter_options.inspect}"
         end
+        cache_init_messages.each { |msg| log("#{msg}\n") }
         nil
+      end
+
+      def log(message)
+        @logger << message if @logger
       end
     end
   end

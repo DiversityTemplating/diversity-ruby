@@ -23,14 +23,15 @@ module Diversity
           },
           ttl: 3600
         },
+        logger: nil,
         validate_spec: false
       }
 
       def initialize(options = {})
         @options = DEFAULT_OPTIONS.keep_merge(options)
+        @logger = @options.fetch(:logger, nil)
         init_cache(@options[:cache_options])
-        fail "Invalid backend URL: #{@options[:backend_url]}!" unless
-          ping_ok
+        fail "Invalid backend URL: #{@options[:backend_url]}!" unless ping_ok
       end
 
       # Returns a list of installed components
@@ -65,7 +66,7 @@ module Diversity
         if version_path == ''
           # We don't fail on components we don't have, but here we have the component but not the
           # version...
-          puts "No match for version \"#{version}\" of #{name}.  We have #{versions.inspect}?"
+          log("No match for version \"#{version}\" of #{name}.  We have #{versions.inspect}?\n")
 
           # Let's use the latest version we have as a failsafe.  Could get bad, but not worse than
           # no component at all.
@@ -107,13 +108,12 @@ module Diversity
         path.each do |part|
           url = File.join(url, part)
         end
-        return @cache[url] if @cache.key?(url)
+        return @cache.load(url) if @cache.key?(url)
 
         response = Unirest.get(url)
         fail "Error when calling API on #{url}: #{response.inspect}" unless response.code == 200
         fail 'Invalid content type' unless response.headers[:content_type] == 'application/json'
-        @cache[url] = JSON.parse(response.raw_body, symbolize_names: true)
-        @cache[url]
+        @cache.store(url, JSON.parse(response.raw_body, symbolize_names: true))
       end
 
       # Returns a list of available versions for a specific component
