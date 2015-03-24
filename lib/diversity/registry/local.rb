@@ -22,8 +22,11 @@ module Diversity
             key: [],
             value: []
           },
+          shared: false,
           ttl: 3600
         },
+        log_level: LOGLEVEL_DEFAULT,
+        logger: nil,
         validate_spec: false
       }
 

@@ -4,6 +4,9 @@ module Diversity
     # This class is the superclass of all registry classes
     class Base
       include Common
+      
+      LOGLEVEL_DEFAULT = 1
+      LOGLEVEL_VERBOSE = 2
 
       # Checks whether a component with a specified version is available.
       #
@@ -123,8 +126,10 @@ module Diversity
         nil
       end
 
-      def log(message)
-        @logger << message if @logger
+      # Logs a message to the logger if there exists a logger and the log level is equal or greater
+      # than the message's log level
+      def log(message, level = LOGLEVEL_DEFAULT)
+        @options[:logger] << message if @options[:logger] && @options[:log_level] >= level
       end
     end
   end

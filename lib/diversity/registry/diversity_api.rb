@@ -21,15 +21,16 @@ module Diversity
             key: [],
             value: []
           },
+          shared: false,
           ttl: 3600
         },
+        log_level: LOGLEVEL_DEFAULT,
         logger: nil,
         validate_spec: false
       }
 
       def initialize(options = {})
         @options = DEFAULT_OPTIONS.keep_merge(options)
-        @logger = @options.fetch(:logger, nil)
         init_cache(@options[:cache_options])
         fail "Invalid backend URL: #{@options[:backend_url]}!" unless ping_ok
       end
@@ -108,7 +109,12 @@ module Diversity
         path.each do |part|
           url = File.join(url, part)
         end
-        return @cache.load(url) if @cache.key?(url)
+        if @cache.key?(url)
+          log("Found #{url} in cache.\n", LOGLEVEL_VERBOSE)
+          return @cache.load(url)
+        end
+
+        log("#{url} not found in cache. Fetching it from backend.\n", LOGLEVEL_VERBOSE)
 
         response = Unirest.get(url)
         fail "Error when calling API on #{url}: #{response.inspect}" unless response.code == 200
