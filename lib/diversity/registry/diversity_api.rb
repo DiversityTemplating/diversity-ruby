@@ -76,13 +76,16 @@ module Diversity
 
         #puts "#{name} - selected #{version_path} for required #{version} (#{requirement} norm: #{normalize_requirement(version)}) out of #{versions.to_json}\n"
 
+        cache_key = "component:#{name}:#{version_path}"
+        return @cache[cache_key] if @cache.key?(cache_key)
+
         base_url = "#{@options[:backend_url]}components/#{name}/#{version_path}/files"
         spec = call_api('components', name, version_path, 'files', 'diversity.json')
         #puts "Got spec from #{name}:#{version_path} on #{base_url}:\n#{spec}"
 
-        Component.new(
+        @cache[cache_key] = Component.new(
           spec,
-          { base_url: base_url, validate_spec: @options[:validate_spec] }
+          { base_url: base_url, validate_spec: @options[:validate_spec], logger: @logger }
         )
       end
 
