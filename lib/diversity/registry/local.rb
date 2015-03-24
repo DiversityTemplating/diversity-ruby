@@ -22,8 +22,11 @@ module Diversity
             key: [],
             value: []
           },
+          shared: false,
           ttl: 3600
         },
+        log_level: LOGLEVEL_DEFAULT,
+        logger: nil,
         validate_spec: false
       }
 
@@ -105,8 +108,8 @@ module Diversity
                 res[component] = [] unless res.key?(component)
                 res[component] << Gem::Version.new(version)
               rescue Diversity::Exception => e
-                puts "Caught an exception trying to put #{cfg} in list of installed components."
-                p e
+                log("Caught an exception trying to put #{cfg} in list of installed components.\n")
+                log("#{e.inspect}\n")
               end
               res
             end.each_pair do |component, versions|

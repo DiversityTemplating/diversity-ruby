@@ -21,16 +21,18 @@ module Diversity
             key: [],
             value: []
           },
+          shared: false,
           ttl: 3600
         },
+        log_level: LOGLEVEL_DEFAULT,
+        logger: nil,
         validate_spec: false
       }
 
       def initialize(options = {})
         @options = DEFAULT_OPTIONS.keep_merge(options)
         init_cache(@options[:cache_options])
-        fail "Invalid backend URL: #{@options[:backend_url]}!" unless
-          ping_ok
+        fail "Invalid backend URL: #{@options[:backend_url]}!" unless ping_ok
       end
 
       # Returns a list of installed components
@@ -40,9 +42,9 @@ module Diversity
         component_versions = {}
         components = call_api('components/')
         components.each do |component|
-          version_objs = get_installed_versions(component[:name])
+          version_objs = get_installed_versions(component['name'])
           version_objs.sort! { |a, b| b <=> a }
-          component_versions[component[:name]] = version_objs
+          component_versions[component['name']] = version_objs
         end
         component_versions
       end
@@ -65,7 +67,7 @@ module Diversity
         if version_path == ''
           # We don't fail on components we don't have, but here we have the component but not the
           # version...
-          puts "No match for version \"#{version}\" of #{name}.  We have #{versions.inspect}?"
+          log("No match for version \"#{version}\" of #{name}.  We have #{versions.inspect}?\n")
 
           # Let's use the latest version we have as a failsafe.  Could get bad, but not worse than
           # no component at all.
@@ -75,7 +77,7 @@ module Diversity
         #puts "#{name} - selected #{version_path} for required #{version} (#{requirement} norm: #{normalize_requirement(version)}) out of #{versions.to_json}\n"
 
         base_url = "#{@options[:backend_url]}components/#{name}/#{version_path}/files"
-        spec = safe_load("#{base_url}/diversity.json")
+        spec = call_api('components', name, version_path, 'files', 'diversity.json')
         #puts "Got spec from #{name}:#{version_path} on #{base_url}:\n#{spec}"
 
         Component.new(
@@ -107,13 +109,17 @@ module Diversity
         path.each do |part|
           url = File.join(url, part)
         end
-        return @cache[url] if @cache.key?(url)
+        if @cache.key?(url)
+          log("Found #{url} in cache.\n", LOGLEVEL_VERBOSE)
+          return @cache.load(url)
+        end
+
+        log("#{url} not found in cache. Fetching it from backend.\n", LOGLEVEL_VERBOSE)
 
         response = Unirest.get(url)
         fail "Error when calling API on #{url}: #{response.inspect}" unless response.code == 200
         fail 'Invalid content type' unless response.headers[:content_type] == 'application/json'
-        @cache[url] = JSON.parse(response.raw_body, symbolize_names: true)
-        @cache[url]
+        @cache.store(url, JSON.parse(response.raw_body, symbolize_names: false))
       end
 
       # Returns a list of available versions for a specific component
