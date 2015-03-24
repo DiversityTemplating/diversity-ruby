@@ -43,8 +43,8 @@ module Diversity
 
     # Creates a new component
     #
-    # @param [String] spec     The diversity.json of the component (as JSON string).
-    # @param [Hash]   options  Options: base_url, validate_spec
+    # @param [String|Hash] spec     The diversity.json of the component (as JSON string).
+    # @param [Hash]        options  Options: base_url, validate_spec
     #
     # @raise [Diversity::Exception] if the resource cannot be loaded
     #
@@ -58,7 +58,8 @@ module Diversity
                  { validate_spec: @options[:validate_spec] }
                ]
 
-      @raw = parse_config(spec)
+      # Handle both Hash and String specs
+      @raw = (spec.is_a?(String) ? parse_config(spec) : spec)
 
       validation = schema.validate(@raw)
       raise Diversity::Exception, "Configuration is not valid:\n" + validation.join("\n"), caller if

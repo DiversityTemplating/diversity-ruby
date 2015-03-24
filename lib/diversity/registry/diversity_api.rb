@@ -42,9 +42,9 @@ module Diversity
         component_versions = {}
         components = call_api('components/')
         components.each do |component|
-          version_objs = get_installed_versions(component[:name])
+          version_objs = get_installed_versions(component['name'])
           version_objs.sort! { |a, b| b <=> a }
-          component_versions[component[:name]] = version_objs
+          component_versions[component['name']] = version_objs
         end
         component_versions
       end
@@ -77,7 +77,7 @@ module Diversity
         #puts "#{name} - selected #{version_path} for required #{version} (#{requirement} norm: #{normalize_requirement(version)}) out of #{versions.to_json}\n"
 
         base_url = "#{@options[:backend_url]}components/#{name}/#{version_path}/files"
-        spec = safe_load("#{base_url}/diversity.json")
+        spec = call_api('components', name, version_path, 'files', 'diversity.json')
         #puts "Got spec from #{name}:#{version_path} on #{base_url}:\n#{spec}"
 
         Component.new(
@@ -119,7 +119,7 @@ module Diversity
         response = Unirest.get(url)
         fail "Error when calling API on #{url}: #{response.inspect}" unless response.code == 200
         fail 'Invalid content type' unless response.headers[:content_type] == 'application/json'
-        @cache.store(url, JSON.parse(response.raw_body, symbolize_names: true))
+        @cache.store(url, JSON.parse(response.raw_body, symbolize_names: false))
       end
 
       # Returns a list of available versions for a specific component
