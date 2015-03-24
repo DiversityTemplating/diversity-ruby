@@ -81,8 +81,8 @@ module Diversity
           elsif schema.key?('additionalProperties')
             sub_schema = schema['additionalProperties']
           else
-            puts "FAIL: Trying to add setting #{key} to #{last_component} at /#{path.join('/')} " \
-              'in ' + JSON.pretty_generate(schema)
+            debug("FAIL: Trying to add setting #{key} to #{last_component} at /#{path.join('/')} " \
+              'in ' + JSON.pretty_generate(schema))
             return component_settings
           end
 
@@ -233,7 +233,7 @@ module Diversity
         text.gsub(/lang/, context[:language] || 'sv')
       end
 
-      puts "Rendering #{component}\n" # with mustache:\n#{mustache_settings}\n\n"
+      debug("Rendering #{component}\n")
 
       # Return rendered data
       Mustache.render(template_mustache, mustache_settings)

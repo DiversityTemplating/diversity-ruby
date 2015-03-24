@@ -74,11 +74,8 @@ module Diversity
           version_path = versions.sort.last.to_s
         end
 
-        #puts "#{name} - selected #{version_path} for required #{version} (#{requirement} norm: #{normalize_requirement(version)}) out of #{versions.to_json}\n"
-
         base_url = "#{@options[:backend_url]}components/#{name}/#{version_path}/files"
         spec = call_api('components', name, version_path, 'files', 'diversity.json')
-        #puts "Got spec from #{name}:#{version_path} on #{base_url}:\n#{spec}"
 
         Component.new(
           spec,
