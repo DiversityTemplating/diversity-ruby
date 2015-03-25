@@ -5,8 +5,8 @@ module Diversity
     class Settings
       include Common
 
-      def initialize(registry)
-        @component_set = Diversity::ComponentSet.new(registry)
+      def initialize(set)
+        @component_set = set
       end
 
       def add_component(component)

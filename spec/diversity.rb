@@ -45,7 +45,6 @@ describe 'Component' do
     component.thumbnail.should.equal('dummy.png')
     component.price.should.equal(nil)
     component.i18n.should.equal({})
-    component.checksum.should.equal(Digest::SHA1.hexdigest(component.dump))
   end
 
   should 'be able to load a local component by using the registry' do

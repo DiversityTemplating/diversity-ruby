@@ -21,7 +21,7 @@ module Diversity
       'https://raw.githubusercontent.com/DiversityTemplating/' \
       'Diversity/master/validation/diversity.schema.json'
 
-    attr_reader :checksum, :raw
+    attr_reader :raw
 
     DEFAULT_OPTIONS = {
       base_url:      nil,
@@ -56,28 +56,23 @@ module Diversity
       @options = DEFAULT_OPTIONS.keep_merge(options)
       @logger = @options[:logger]
 
-      schema = JsonSchemaCache[
-                 MASTER_COMPONENT_SCHEMA,
-                 { validate_spec: @options[:validate_spec] }
-               ]
-
       # Handle both Hash and String specs
       @raw = (spec.is_a?(String) ? parse_config(spec) : spec)
 
-      validation = schema.validate(@raw)
-      raise Diversity::Exception, "Configuration is not valid:\n" + validation.join("\n"), caller if
-        validation.length > 0
+      if (@options[:validate_spec])
+        schema = JsonSchemaCache[
+          MASTER_COMPONENT_SCHEMA,
+          { validate_spec: @options[:validate_spec] }
+        ]
 
-      @checksum = Digest::SHA1.hexdigest(dump)
+        validation = schema.validate(@raw)
+        raise Diversity::Exception,
+              "Configuration is not valid:\n" + validation.join("\n"), caller if
+          validation.length > 0
+      end
+
       @assets = {}
       populate(@raw)
-    end
-
-    # Returns a JSON dump of the component configuration
-    #
-    # @return [String]
-    def dump
-      JSON.pretty_generate(@raw)
     end
 
     # Resolves context in component by asking the API
@@ -167,8 +162,9 @@ module Diversity
     end
 
     def ==(other)
-      return false unless other.is_a?(Diversity::Component)
-      @checksum == other.checksum
+      other.is_a?(Diversity::Component) &&
+        self.name == other.name &&
+        self.version == other.version
     end
 
     def get_asset(path)
@@ -236,8 +232,6 @@ module Diversity
       @configuration.styles = Rake::FileList.new(hsh.fetch('style', []))
       @configuration.scripts = Rake::FileList.new(hsh.fetch('script', []))
       @configuration.dependencies = hsh.fetch('dependencies', {})
-      @configuration.type = hsh.fetch('type', nil)
-      @configuration.pagetype = hsh.fetch('pagetype', nil)
       @configuration.context = hsh.fetch('context', {})
       settings = hsh.fetch('settings', {})
       schema_options = @options[:validate_spec] ? { validate_spec: true } : {}
@@ -251,13 +245,10 @@ module Diversity
       @configuration.angular = hsh.fetch('angular', nil)
       # If set to true, use component name
       @configuration.angular = @configuration.name if @configuration.angular == true
-      @configuration.partials = hsh.fetch('partials', {})
-      @configuration.themes = Rake::FileList.new(hsh.fetch('themes', []))
-      @configuration.fields = hsh.fetch('fields', {})
-      @configuration.title = hsh.fetch('title', nil)
-      @configuration.description = hsh.fetch('description', nil)
-      @configuration.thumbnail = hsh.fetch('thumbnail', nil)
-      @configuration.price = hsh.fetch('price', nil)
+
+      #@configuration.title = hsh.fetch('title', nil)
+      #@configuration.description = hsh.fetch('description', nil)
+      #@configuration.thumbnail = hsh.fetch('thumbnail', nil)
       @configuration.i18n = hsh.fetch('i18n', {})
     end
   end

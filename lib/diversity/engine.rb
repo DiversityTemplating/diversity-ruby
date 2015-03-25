@@ -31,6 +31,11 @@ module Diversity
       @debug_level = 0
       @logger = @options[:logger]
 
+      @cache = Moneta.build do
+        use :Expires, expires: 3600
+        adapter :Memory
+      end
+
       # Ensure that we have a valid registry to work against
       fail 'Cannot run engine without a valid registry!' unless
         @options[:registry].is_a?(Registry::Base)
@@ -45,9 +50,13 @@ module Diversity
     # @param [Hash]   component_settings  Settings for this component rendering.
     # @param [Array]  path                Array representing json path from root.
     #
-    # @return [String]
+    # @return [Array] Array of Components and String
     def render(component, context = {}, component_settings = {}, path = [])
-      settings.add_component(component)
+      cache_key = "#{component}:#{context.to_json}:#{component_settings.to_json}"
+      return @cache[cache_key] if @cache.key?(cache_key)
+
+      # We are only interrested in the components used from this point and down.
+      components = [component]
 
       # Get component schema
       schema = component.settings
@@ -59,9 +68,13 @@ module Diversity
       end
 
       # Traverse the component_settings to expand sub-components
-      expanded_settings = expand_settings(schema.data, component_settings, context, path, component)
+      new_components, expanded_settings = expand_settings(
+        schema.data, component_settings, context, path, component
+      )
+      components.concat(new_components)
 
-      render_template(component, context, expanded_settings, path)
+      html = render_template(component, context, expanded_settings, path, components)
+      @cache[cache_key] = [components, html]
     end
 
     private
@@ -70,6 +83,8 @@ module Diversity
     #
     # @return expanded_settings
     def expand_settings(schema, component_settings, context = {}, path = [], last_component)
+      components = []
+
       if component_settings.is_a?(Hash)
         expanded_settings = {}
 
@@ -88,7 +103,7 @@ module Diversity
               "Could not add setting #{key} to #{last_component} at /#{path.join('/')} " \
               'in ' + JSON.pretty_generate(schema)
             )
-            return component_settings
+            return [components, component_settings]
           end
 
           if sub_schema.key?('format') && sub_schema['format'] == 'diversity'
@@ -97,11 +112,13 @@ module Diversity
             subsub_settings = sub_settings.key?('settings') ? sub_settings['settings'] : nil
             sub_component   = get_component(sub_settings['component'], version)
 
-            expanded_settings[key] =
-              { componentHTML: render(sub_component, context, subsub_settings, sub_path) }
+            new_components, html = render(sub_component, context, subsub_settings, sub_path)
+            components.concat(new_components)
+            expanded_settings[key] = { componentHTML: html }
           else
-            expanded_settings[key] =
+            new_components, expanded_settings[key] =
               expand_settings(sub_schema, sub_settings, context, sub_path, last_component)
+            components.concat(new_components)
           end
         end
       elsif component_settings.is_a?(Array)
@@ -128,29 +145,21 @@ module Diversity
             subsub_settings = sub_settings.key?('settings') ? sub_settings['settings'] : nil
             sub_component   = @options[:registry].get_component(sub_settings['component'], version)
 
-            expanded_settings <<
-              { componentHTML: render(sub_component, context, subsub_settings, sub_path) }
+            new_components, html = render(sub_component, context, subsub_settings, sub_path)
+            expanded_settings << { componentHTML: html }
+            components.concat(new_components)
           else
-            expanded_settings << expand_settings(sub_schema, sub_settings, context, sub_path)
+            new_components, subsettings =
+              expand_settings(sub_schema, sub_settings, context, sub_path)
+            expanded_settings << subsettings
+            components.concat(new_components)
           end
         end
       else
         expanded_settings = component_settings
       end
 
-      expanded_settings
-    end
-
-    # Returns the default rendering context for the current engine
-    #
-    # @return [Hash]
-    def settings
-      self.class.settings[self] ||= Settings.new(@options[:registry])
-    end
-
-    # Deletes the rendering context for the current engine
-    def delete_settings
-      self.class.settings.delete(self)
+      [components, expanded_settings]
     end
 
     def get_component(name, version = nil)
@@ -166,13 +175,14 @@ module Diversity
     # Given a component, a mustache template and some settings, return
     # a rendered HTML string.
     #
-    # @param [Diversity::Component] component
-    # @param [Hash]                 context
-    # @param [Hash]                 component_settings
-    # @param [Array]                path
+    # @param [Diversity::Component]  component
+    # @param [Hash]                  context
+    # @param [Hash]                  component_settings
+    # @param [Array]                 path
+    # @param [Array]                 components
     #
-    # @return [String]
-    def render_template(component, context, component_settings, path)
+    # @return [String]  html
+    def render_template(component, context, component_settings, path, components)
       mustache_settings = {}
       mustache_settings[:settings]     = component_settings
       mustache_settings[:settingsJSON] =
@@ -180,6 +190,11 @@ module Diversity
 
       # Add angularBootstrap, scripts and styles (top level only)
       if path.empty?
+        set = Diversity::ComponentSet.new(@options[:registry])
+        components.each { |component| set << component }
+
+        settings = Diversity::Engine::Settings.new(set)
+
         mustache_settings['angularBootstrap'] =
           "angular.bootstrap(document,#{settings.angular.to_json});"
 
@@ -201,13 +216,15 @@ module Diversity
         else
           mustache_settings['styles'] = settings.styles
         end
-      end
-      begin
-        mustache_settings[:l10n] = settings.l10n(context[:language])
-      rescue Encoding::UndefinedConversionError => e
-        raise Diversity::Exception, "Bad json in l10n of #{component}: #{e}\n" \
-          "We have collected: #{settings.l10n(context[:language]).inspect}\n" \
-          "With system encoding: #{Encoding.default_external}"
+
+        begin
+          mustache_settings[:l10n] = settings.l10n(context[:language])
+        rescue Encoding::UndefinedConversionError => e
+          raise Diversity::Exception,
+                "Bad json in l10n of #{component}: #{e}\n" \
+                "We have collected: #{settings.l10n(context[:language]).inspect}\n" \
+                "With system encoding: #{Encoding.default_external}"
+        end
       end
 
       template_mustache = component.template_mustache
