@@ -55,7 +55,7 @@ module Diversity
       # Validate if told to and someone could see it
       if @options[:validate_settings]
         validation = schema.validate(component_settings)
-        @logger.debug("Validation failed:\n#{validation.join("\n")}") unless validation.empty?
+        @logger.warn("Validation failed:\n#{validation.join("\n")}") unless validation.empty?
       end
 
       # Traverse the component_settings to expand sub-components
@@ -233,7 +233,7 @@ module Diversity
         text.gsub(/lang/, context[:language] || 'sv')
       end
 
-      @logger.debug("Rendering #{component}\n") # with mustache:\n#{mustache_settings}\n\n"
+      @logger.info("Rendering #{component}\n") # with mustache:\n#{mustache_settings}\n\n"
 
       # Return rendered data
       Mustache.render(template_mustache, mustache_settings)

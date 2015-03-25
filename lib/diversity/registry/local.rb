@@ -90,6 +90,7 @@ module Diversity
             validate_spec: @options[:validate_spec],
             base_url:        base_url,
             base_path:       dir,
+            logger:          @logger,
           }
           Component.new(spec, options)
         end
@@ -109,7 +110,7 @@ module Diversity
                 res[component] = [] unless res.key?(component)
                 res[component] << Gem::Version.new(version)
               rescue Diversity::Exception => e
-                @logger.warn("Exception adding #{cfg} to list of components.\n#{e.inspect}")
+                @logger.error("Exception adding #{cfg} to list of components.\n#{e.inspect}")
               end
               res
             end.each_pair do |component, versions|
