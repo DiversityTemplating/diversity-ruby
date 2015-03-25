@@ -7,6 +7,7 @@ require 'json-rpc-client'
 require 'rake/file_list'
 require 'rubygems/requirement'
 require 'rubygems/version'
+require 'null_logger'
 require_relative 'common'
 require_relative 'exception'
 require_relative 'json_schema_cache'
@@ -25,6 +26,7 @@ module Diversity
     DEFAULT_OPTIONS = {
       base_url:      nil,
       base_path:     nil,  # Can be set to something more readily readable than base_url
+      logger:        NullLogger.instance,
       validate_spec: false
     }
 
@@ -52,6 +54,7 @@ module Diversity
     def initialize(spec, options)
       @configuration = Configuration.new
       @options = DEFAULT_OPTIONS.keep_merge(options)
+      @logger = @options[:logger]
 
       schema = JsonSchemaCache[
                  MASTER_COMPONENT_SCHEMA,
@@ -96,7 +99,7 @@ module Diversity
         end
 
         unless settings.key?('type')
-          puts "#{self} has context with no type: #{key}"
+          @logger.debug("#{self} has context with no type: #{key}")
           resolved_context[key] = settings
           next
         end

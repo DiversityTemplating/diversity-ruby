@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 require 'mustache'
 require 'tmpdir'
+require 'null_logger'
 require_relative 'engine/settings'
 
 module Diversity
@@ -21,12 +22,14 @@ module Diversity
         minify_remotes: false
       },
       registry: nil,
+      logger: NullLogger.instance,
       validate_settings: false
     }
 
     def initialize(options = {})
       @options = DEFAULT_OPTIONS.keep_merge(options)
       @debug_level = 0
+      @logger = @options[:logger]
 
       # Ensure that we have a valid registry to work against
       fail 'Cannot run engine without a valid registry!' unless
@@ -52,7 +55,7 @@ module Diversity
       # Validate if told to and someone could see it
       if @options[:validate_settings]
         validation = schema.validate(component_settings)
-        debug("Validation failed:\n#{validation.join("\n")}") unless validation.empty?
+        @logger.debug("Validation failed:\n#{validation.join("\n")}") unless validation.empty?
       end
 
       # Traverse the component_settings to expand sub-components
@@ -81,8 +84,10 @@ module Diversity
           elsif schema.key?('additionalProperties')
             sub_schema = schema['additionalProperties']
           else
-            puts "FAIL: Trying to add setting #{key} to #{last_component} at /#{path.join('/')} " \
+            @logger.warn(
+              "Could not add setting #{key} to #{last_component} at /#{path.join('/')} " \
               'in ' + JSON.pretty_generate(schema)
+            )
             return component_settings
           end
 
@@ -146,11 +151,6 @@ module Diversity
     # Deletes the rendering context for the current engine
     def delete_settings
       self.class.settings.delete(self)
-    end
-
-    def debug(msg, debug_delta = 0)
-      @options[:debug_logger] << '  ' * @debug_level + msg if @options[:debug_logger]
-      @debug_level += debug_delta
     end
 
     def get_component(name, version = nil)
@@ -233,7 +233,7 @@ module Diversity
         text.gsub(/lang/, context[:language] || 'sv')
       end
 
-      puts "Rendering #{component}\n" # with mustache:\n#{mustache_settings}\n\n"
+      @logger.debug("Rendering #{component}\n") # with mustache:\n#{mustache_settings}\n\n"
 
       # Return rendered data
       Mustache.render(template_mustache, mustache_settings)

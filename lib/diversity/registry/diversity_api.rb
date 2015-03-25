@@ -2,6 +2,7 @@
 require 'addressable/uri'
 require 'json'
 require 'unirest'
+require 'null_logger'
 
 module Diversity
   module Registry
@@ -24,13 +25,13 @@ module Diversity
           shared: false,
           ttl: 3600
         },
-        log_level: LOGLEVEL_DEFAULT,
-        logger: nil,
+        logger: NullLogger.instance,
         validate_spec: false
       }
 
       def initialize(options = {})
         @options = DEFAULT_OPTIONS.keep_merge(options)
+        @logger = @options[:logger]
         init_cache(@options[:cache_options])
         fail "Invalid backend URL: #{@options[:backend_url]}!" unless ping_ok
       end
@@ -67,7 +68,9 @@ module Diversity
         if version_path == ''
           # We don't fail on components we don't have, but here we have the component but not the
           # version...
-          log("No match for version \"#{version}\" of #{name}.  We have #{versions.inspect}?\n")
+          @logger.warn(
+            "No match for version \"#{version}\" of #{name}.  We have #{versions.inspect}?\n"
+          )
 
           # Let's use the latest version we have as a failsafe.  Could get bad, but not worse than
           # no component at all.
@@ -113,11 +116,11 @@ module Diversity
           url = File.join(url, part)
         end
         if @cache.key?(url)
-          log("Found #{url} in cache.\n", LOGLEVEL_VERBOSE)
+          @logger.debug("Found #{url} in cache.\n")
           return @cache.load(url)
         end
 
-        log("#{url} not found in cache. Fetching it from backend.\n", LOGLEVEL_VERBOSE)
+        @logger.debug("#{url} not found in cache. Fetching it from backend.\n")
 
         response = Unirest.get(url)
         fail "Error when calling API on #{url}: #{response.inspect}" unless response.code == 200
