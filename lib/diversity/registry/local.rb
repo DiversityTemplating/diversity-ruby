@@ -2,6 +2,7 @@
 require 'fileutils'
 require 'addressable/uri'
 require 'fileutils'
+require 'null_logger'
 require_relative '../common.rb'
 require_relative '../component.rb'
 require_relative '../exception.rb'
@@ -25,8 +26,7 @@ module Diversity
           shared: false,
           ttl: 3600
         },
-        log_level: LOGLEVEL_DEFAULT,
-        logger: nil,
+        logger: NullLogger.instance,
         validate_spec: false
       }
 
@@ -40,6 +40,7 @@ module Diversity
       def initialize(options = {})
         @options = DEFAULT_OPTIONS.keep_merge(options)
         @options[:base_path] = File.expand_path(@options[:base_path])
+        @logger = @options[:logger]
         fileutils.mkdir_p(@options[:base_path]) unless File.exist?(@options[:base_path])
         init_cache(@options[:cache_options])
       end
@@ -89,6 +90,7 @@ module Diversity
             validate_spec: @options[:validate_spec],
             base_url:        base_url,
             base_path:       dir,
+            logger:          @logger,
           }
           Component.new(spec, options)
         end
@@ -108,8 +110,7 @@ module Diversity
                 res[component] = [] unless res.key?(component)
                 res[component] << Gem::Version.new(version)
               rescue Diversity::Exception => e
-                log("Caught an exception trying to put #{cfg} in list of installed components.\n")
-                log("#{e.inspect}\n")
+                @logger.error("Exception adding #{cfg} to list of components.\n#{e.inspect}")
               end
               res
             end.each_pair do |component, versions|
