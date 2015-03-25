@@ -31,6 +31,7 @@ module Diversity
 
       def initialize(options = {})
         @options = DEFAULT_OPTIONS.keep_merge(options)
+        @instances = {}
         init_cache(@options[:cache_options])
         fail "Invalid backend URL: #{@options[:backend_url]}!" unless ping_ok
       end
@@ -76,14 +77,14 @@ module Diversity
 
         #puts "#{name} - selected #{version_path} for required #{version} (#{requirement} norm: #{normalize_requirement(version)}) out of #{versions.to_json}\n"
 
-        cache_key = "component:#{name}:#{version_path}"
-        return @cache[cache_key] if @cache.key?(cache_key)
+        instance_key = "component:#{name}:#{version_path}"
+        return @instances[instance_key] if @instances.key?(instance_key)
 
         base_url = "#{@options[:backend_url]}components/#{name}/#{version_path}/files"
         spec = call_api('components', name, version_path, 'files', 'diversity.json')
         #puts "Got spec from #{name}:#{version_path} on #{base_url}:\n#{spec}"
 
-        @cache[cache_key] = Component.new(
+        @instances[instance_key] = Component.new(
           spec,
           { base_url: base_url, validate_spec: @options[:validate_spec], logger: @logger }
         )
