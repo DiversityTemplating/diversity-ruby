@@ -21,7 +21,7 @@ module Diversity
       'https://raw.githubusercontent.com/DiversityTemplating/' \
       'Diversity/master/validation/diversity.schema.json'
 
-    attr_reader :raw
+    attr_reader :checksum, :raw
 
     DEFAULT_OPTIONS = {
       base_url:      nil,
@@ -71,6 +71,7 @@ module Diversity
           validation.length > 0
       end
 
+      @checksum = "#{name}:#{version}"
       @assets = {}
       populate(@raw)
     end
@@ -162,9 +163,7 @@ module Diversity
     end
 
     def ==(other)
-      other.is_a?(Diversity::Component) &&
-        self.name == other.name &&
-        self.version == other.version
+      @checksum == other.checksum
     end
 
     def get_asset(path)
