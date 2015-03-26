@@ -52,57 +52,50 @@ module Diversity
       end
 
       def get_component(name, version = nil)
-        requirement =
-          (version.nil? or version == '*') ? Gem::Requirement.default :
-          version.is_a?(Gem::Requirement)  ? version                  :
-          Gem::Requirement.create(normalize_requirement(version))
+        # Make requirement into diversity-api path
+        if version.nil?
+          req = '*'
+        elsif version.start_with?('^')
+          # Caret version:
+          # ^1.2.3 => 1
+          # ^0.1.2 => 0.1
+          # ^0.0.1 => 0.0.1
+          rawversion = version.dup
+          rawversion[0] = '' # Remove the caret
+          req_parts = []
+          rawversion.split('.').each do |part|
+            req_parts.push(part)
+            break if (part.to_i > 0)
+          end
 
-        begin
-          versions = get_installed_versions(name)
-        rescue
-          return nil
-        end
-        version_path = versions.
-          select {|version_obj| requirement.satisfied_by?(version_obj) }.
-          sort.last.to_s
-
-        if version_path == ''
-          # We don't fail on components we don't have, but here we have the component but not the
-          # version...
-          @logger.warn(
-            "No match for version \"#{version}\" of #{name}.  We have #{versions.inspect}?\n"
-          )
-
-          # Let's use the latest version we have as a failsafe.  Could get bad, but not worse than
-          # no component at all.
-          version_path = versions.sort.last.to_s
+          req = req_parts.join('.')
+        else
+          req = version
         end
 
-        #puts "#{name} - selected #{version_path} for required #{version} (#{requirement} norm: #{normalize_requirement(version)}) out of #{versions.to_json}\n"
+        # This call could fail.  That means we don't have what's asked for, so let it fail.
+        spec = call_api('components', name, req)
+        version_path = spec['version']
 
         instance_key = "component:#{name}:#{version_path}"
+        @logger.debug do
+          @instances.key?(instance_key) ?
+            "Got #{@instances[instance_key]} from cache" :
+            "Uncached, fetching #{name}:#{version_path} (from #{version})"
+        end
         return @instances[instance_key] if @instances.key?(instance_key)
 
         base_url = "#{@options[:backend_url]}components/#{name}/#{version_path}/files"
-        spec = call_api('components', name, version_path, 'files', 'diversity.json')
-        #puts "Got spec from #{name}:#{version_path} on #{base_url}:\n#{spec}"
 
         @instances[instance_key] = Component.new(
           spec,
-          { base_url: base_url, validate_spec: @options[:validate_spec], logger: @logger }
+          { base_url: base_url, validate_spec: @options[:validate_spec], logger: @logger },
+          self
         )
       end
 
-      def cache_contains?(url)
-        @cache.key?(url)
-      end
-
-      # Purges the cache for a specific URL
-      #
-      # @param [String]
-      # @return [Object]
-      def cache_purge(url = nil)
-        url ? @cache.delete(url) : @cache.clear
+      def get_asset(component, path)
+        call_api('components', component.name, component.version, 'files', path)
       end
 
       private
@@ -110,7 +103,7 @@ module Diversity
       # Calls the diversity REST Api and parses the response
       #
       # @param [Array] path
-      # @return Hash
+      # @return [Hash|Array|String] Parsed JSON or raw HTML
       def call_api(*path)
         url = @options[:backend_url]
         path.each do |part|
@@ -125,8 +118,11 @@ module Diversity
 
         response = Unirest.get(url)
         fail "Error when calling API on #{url}: #{response.inspect}" unless response.code == 200
-        fail 'Invalid content type' unless response.headers[:content_type] == 'application/json'
-        @cache.store(url, JSON.parse(response.raw_body, symbolize_names: false))
+        if response.headers[:content_type] == 'application/json'
+          @cache.store(url, JSON.parse(response.raw_body, symbolize_names: false))
+        else
+          @cache.store(url, response.raw_body.force_encoding('UTF-8'))
+        end
       end
 
       # Returns a list of available versions for a specific component

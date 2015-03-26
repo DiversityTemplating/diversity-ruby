@@ -12,7 +12,7 @@ module Diversity
 
     def <<(component)
       fail "You tried to add a #{component.class} to the component " \
-      "set. Please only add components." unless
+           "set. Please only add components." unless
         component.is_a?(Diversity::Component)
 
       # Don't keep multiple instances in the array!

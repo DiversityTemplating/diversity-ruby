@@ -45,7 +45,6 @@ describe 'Component' do
     component.thumbnail.should.equal('dummy.png')
     component.price.should.equal(nil)
     component.i18n.should.equal({})
-    component.checksum.should.equal(Digest::SHA1.hexdigest(component.dump))
   end
 
   should 'be able to load a local component by using the registry' do
@@ -188,6 +187,14 @@ describe 'Component' do
   end
 =end
 
+end
+
+describe 'Common' do
+  should 'match only major on ^1.2.3' do
+    common = Diversity::Common.new
+
+
+  end
 end
 
 describe 'Engine' do
