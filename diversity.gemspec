@@ -5,7 +5,7 @@ Gem::Specification.new do |s|
   s.homepage              = 'https://github.com/DiversityTemplating/diversity-ruby'
   s.license               = 'MIT'
   s.authors               = ['Fredrik Liljegren', 'Lars Olsson']
-  s.version               = '0.1.1'
+  s.version               = '0.2.0'
   s.date                  = '2014-03-20'
   s.summary               = 'Diversity Templating engine.'
   s.description           = 'Diversity Templating engine.'
