@@ -189,6 +189,14 @@ describe 'Component' do
 
 end
 
+describe 'Common' do
+  should 'match only major on ^1.2.3' do
+    common = Diversity::Common.new
+
+
+  end
+end
+
 describe 'Engine' do
   should 'render sub-components from registry when used in settings' do
     registry_path = File.expand_path(File.join(File.dirname(__FILE__), 'components_for_engine'))

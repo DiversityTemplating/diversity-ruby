@@ -17,3 +17,22 @@ AngularJS templating on the frontend (by doing collected manual bootstrapping).
 
 This component system is constructed for use with [Textalk Webshop](http://www.textalk.com/webshop),
 but is in no way limited to that use.
+
+
+Options
+-------
+
+### Engine
+
+The Engine takes the following options:
+
+#### minification
+
+#### cache
+
+The engine keeps two things in cache: Instantiated components, and rendered HTML.  This is a
+memory-only cache inside current worker.
+
+Options:
+
+  * `ttl` -  Time to live, in seconds.  Default: 60.

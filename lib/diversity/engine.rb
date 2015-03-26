@@ -21,6 +21,7 @@ module Diversity
         minify_js: false,
         minify_remotes: false
       },
+      cache: {ttl: 60},
       registry: nil,
       logger: NullLogger.instance,
       validate_settings: false
@@ -31,8 +32,9 @@ module Diversity
       @debug_level = 0
       @logger = @options[:logger]
 
+      ttl = @options[:cache][:ttl]
       @cache = Moneta.build do
-        use :Expires, expires: 3600
+        use :Expires, expires: ttl
         adapter :Memory
       end
 
@@ -45,17 +47,20 @@ module Diversity
 
     # Renders a component
     #
-    # @param [Diversity::Component]       component
-    # @param [Hash]   context             Context to render in.
-    # @param [Hash]   component_settings  Settings for this component rendering.
-    # @param [Array]  path                Array representing json path from root.
+    # @param [Hash]   settings  What to render; a Hash with component, version, settings.
+    # @param [Hash]   context   Context to render in.
+    # @param [Array]  path      Array representing json path from root.
     #
     # @return [Array] Array of Components and String
-    def render(component, context = {}, component_settings = {}, path = [])
-      cache_key = "#{component}:#{context.to_json}:#{component_settings.to_json}"
+    def render(settings, context = {}, path = [])
+      cache_key = "#{settings.to_json}:#{context.to_json}"
       return @cache[cache_key] if @cache.key?(cache_key)
 
       # We are only interrested in the components used from this point and down.
+      version   = settings.key?('version') ? settings['version'] : nil
+      component = @options[:registry].get_component(settings['component'], version)
+      component_settings = settings.key?('settings') ? settings['settings'] : nil
+
       components = [component]
 
       # Get component schema
@@ -107,12 +112,8 @@ module Diversity
           end
 
           if sub_schema.key?('format') && sub_schema['format'] == 'diversity'
-            # Replace the setting with HTML output from the component
-            version         = sub_settings.key?('version') ? sub_settings['version'] : nil
-            subsub_settings = sub_settings.key?('settings') ? sub_settings['settings'] : nil
-            sub_component   = get_component(sub_settings['component'], version)
-
-            new_components, html = render(sub_component, context, subsub_settings, sub_path)
+            # Add componentHTML
+            new_components, html = render(sub_settings, context, sub_path)
             components.concat(new_components)
             expanded_settings[key] = { componentHTML: html }
           else
@@ -140,12 +141,8 @@ module Diversity
             # Ignore bad settings; they are warned about in schema validation.
             next unless sub_settings.is_a?(Hash)
 
-            # Replace the setting with HTML output from the component
-            version         = sub_settings.key?('version') ? sub_settings['version'] : nil
-            subsub_settings = sub_settings.key?('settings') ? sub_settings['settings'] : nil
-            sub_component   = @options[:registry].get_component(sub_settings['component'], version)
-
-            new_components, html = render(sub_component, context, subsub_settings, sub_path)
+            # Add componentHTML
+            new_components, html = render(sub_settings, context, sub_path)
             expanded_settings << { componentHTML: html }
             components.concat(new_components)
           else
@@ -192,8 +189,9 @@ module Diversity
       if path.empty?
         set = Diversity::ComponentSet.new(@options[:registry])
         components.each { |component| set << component }
+        @logger.debug { "Rendering mustache with: #{components.map {|c| c.to_s}}" }
 
-        settings = Diversity::Engine::Settings.new(set)
+        settings = Diversity::Engine::Settings.new(set, @logger)
 
         mustache_settings['angularBootstrap'] =
           "angular.bootstrap(document,#{settings.angular.to_json});"

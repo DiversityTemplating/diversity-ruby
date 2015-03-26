@@ -21,7 +21,7 @@ module Diversity
       'https://raw.githubusercontent.com/DiversityTemplating/' \
       'Diversity/master/validation/diversity.schema.json'
 
-    attr_reader :checksum, :raw
+    attr_reader :raw
 
     DEFAULT_OPTIONS = {
       base_url:      nil,
@@ -51,10 +51,11 @@ module Diversity
     # @raise [Diversity::Exception] if the resource cannot be loaded
     #
     # @return [Diversity::Component]
-    def initialize(spec, options)
+    def initialize(spec, options, registry)
       @configuration = Configuration.new
-      @options = DEFAULT_OPTIONS.keep_merge(options)
-      @logger = @options[:logger]
+      @options       = DEFAULT_OPTIONS.keep_merge(options)
+      @logger        = @options[:logger]
+      @registry      = registry
 
       # Handle both Hash and String specs
       @raw = (spec.is_a?(String) ? parse_config(spec) : spec)
@@ -71,7 +72,6 @@ module Diversity
           validation.length > 0
       end
 
-      @checksum = "#{name}:#{version}"
       @assets = {}
       populate(@raw)
     end
@@ -163,18 +163,17 @@ module Diversity
     end
 
     def ==(other)
-      @checksum == other.checksum
+      name == other.name && version == other.version
     end
 
     def get_asset(path)
       return @assets[path] if @assets.key?(path)
 
       if @options[:base_path]
-        full_path = File.join(@options[:base_path], path)
+        @assets[path] = safe_load(File.join(@options[:base_path], path))
       else
-        full_path = "#{@options[:base_url]}/#{path}"
+        @assets[path] = @registry.get_asset(self, path)
       end
-      @assets[path] = safe_load(full_path)
     end
 
     def template_mustache
@@ -225,13 +224,13 @@ module Diversity
     # @param [Hash] hsh
     # @return [nil]
     def populate(hsh)
-      @configuration.name = hsh['name']
-      @configuration.version = Gem::Version.new(hsh['version'])
-      @configuration.templates = Rake::FileList.new(hsh.fetch('template', []))
-      @configuration.styles = Rake::FileList.new(hsh.fetch('style', []))
-      @configuration.scripts = Rake::FileList.new(hsh.fetch('script', []))
+      @configuration.name         = hsh['name']
+      @configuration.version      = hsh['version']
+      @configuration.templates    = Rake::FileList.new(hsh.fetch('template', []))
+      @configuration.styles       = Rake::FileList.new(hsh.fetch('style', []))
+      @configuration.scripts      = Rake::FileList.new(hsh.fetch('script', []))
       @configuration.dependencies = hsh.fetch('dependencies', {})
-      @configuration.context = hsh.fetch('context', {})
+      @configuration.context      = hsh.fetch('context', {})
       settings = hsh.fetch('settings', {})
       schema_options = @options[:validate_spec] ? { validate_spec: true } : {}
       if settings.is_a?(Hash)
