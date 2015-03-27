@@ -83,7 +83,7 @@ module Diversity
 
         base_url = "#{@options[:backend_url]}components/#{name}/#{version_path}/files"
 
-        @cache[name] = Component.new(
+        @cache[instance_key] = Component.new(
           spec,
           { base_url: base_url, validate_spec: @options[:validate_spec], logger: @logger },
           self
