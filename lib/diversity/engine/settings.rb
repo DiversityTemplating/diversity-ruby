@@ -30,7 +30,7 @@ module Diversity
              comp.i18n.key?(langcode) &&
              comp.i18n[langcode].key?('view') # i18n will be changed to l10n later
             begin
-              data = comp.get_asset(comp.i18n[langcode]['view'])
+              data = comp.get_asset(comp.i18n[langcode]['view']).to_json
               l10n << {
                 'component' => comp.name,
                 'messages'  => data
