@@ -21,7 +21,6 @@ module Diversity
         minify_js: false,
         minify_remotes: false
       },
-      cache: {ttl: 60},
       registry: nil,
       logger: NullLogger.instance,
       validate_settings: false
@@ -31,12 +30,6 @@ module Diversity
       @options = DEFAULT_OPTIONS.keep_merge(options)
       @debug_level = 0
       @logger = @options[:logger]
-
-      ttl = @options[:cache][:ttl]
-      @cache = Moneta.build do
-        use :Expires, expires: ttl
-        adapter :Memory
-      end
 
       # Ensure that we have a valid registry to work against
       fail 'Cannot run engine without a valid registry!' unless
@@ -53,9 +46,6 @@ module Diversity
     #
     # @return [Array] Array of Components and String
     def render(settings, context = {}, path = [])
-      cache_key = "#{settings.to_json}:#{context.to_json}"
-      return @cache[cache_key] if @cache.key?(cache_key)
-
       # We are only interrested in the components used from this point and down.
       version   = settings.key?('version') ? settings['version'] : nil
       component = @options[:registry].get_component(settings['component'], version)
@@ -79,7 +69,7 @@ module Diversity
       components.concat(new_components)
 
       html = render_template(component, context, expanded_settings, path, components)
-      @cache[cache_key] = [components, html]
+      [components, html]
     end
 
     private

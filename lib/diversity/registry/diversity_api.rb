@@ -14,26 +14,22 @@ module Diversity
 
       # Default options
       DEFAULT_OPTIONS = {
-        backend_url: nil,
-        cache_options: {
-          adapter: :Memory,
-          adapter_options: {},
-          transformer: {
-            key: [],
-            value: []
-          },
-          shared: false,
-          ttl: 3600
-        },
-        logger: NullLogger.instance,
+        backend_url:   nil,
+        cache_ttl:     3600,
+        logger:        NullLogger.instance,
         validate_spec: false
       }
 
       def initialize(options = {})
         @options = DEFAULT_OPTIONS.keep_merge(options)
         @logger = @options[:logger]
-        @instances = {}
-        init_cache(@options[:cache_options])
+
+        ttl = @options[:cache_ttl]
+        @cache = Moneta.build do
+          use :Expires, expires: ttl
+          adapter :Memory
+        end
+
         fail "Invalid backend URL: #{@options[:backend_url]}!" unless ping_ok
       end
 
@@ -79,15 +75,15 @@ module Diversity
 
         instance_key = "component:#{name}:#{version_path}"
         @logger.debug do
-          @instances.key?(instance_key) ?
-            "Got #{@instances[instance_key]} from cache" :
+          @cache.key?(instance_key) ?
+            "Got #{@cache[instance_key]} from cache" :
             "Uncached, fetching #{name}:#{version_path} (from #{version})"
         end
-        return @instances[instance_key] if @instances.key?(instance_key)
+        return @cache[instance_key] if @cache.key?(instance_key)
 
         base_url = "#{@options[:backend_url]}components/#{name}/#{version_path}/files"
 
-        @instances[instance_key] = Component.new(
+        @cache[name] = Component.new(
           spec,
           { base_url: base_url, validate_spec: @options[:validate_spec], logger: @logger },
           self
@@ -109,6 +105,7 @@ module Diversity
         path.each do |part|
           url = File.join(url, part)
         end
+
         if @cache.key?(url)
           @logger.debug("Found #{url} in cache.\n")
           return @cache.load(url)
@@ -119,9 +116,9 @@ module Diversity
         response = Unirest.get(url)
         fail "Error when calling API on #{url}: #{response.inspect}" unless response.code == 200
         if response.headers[:content_type] == 'application/json'
-          @cache.store(url, JSON.parse(response.raw_body, symbolize_names: false))
+          @cache[url] = JSON.parse(response.raw_body, symbolize_names: false)
         else
-          @cache.store(url, response.raw_body.force_encoding('UTF-8'))
+          @cache[url] = response.raw_body.force_encoding('UTF-8')
         end
       end
 
