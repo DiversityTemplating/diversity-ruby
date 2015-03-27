@@ -25,7 +25,6 @@ module Diversity
       end
 
       def l10n(langcode)
-        return ''
         @component_set.to_a.reduce([]) do |l10n, comp|
           if comp.i18n &&
              comp.i18n.key?(langcode) &&
