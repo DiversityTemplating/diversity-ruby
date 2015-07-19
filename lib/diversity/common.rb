@@ -110,5 +110,28 @@ module Diversity
         raise Diversity::Exception, "Failed to parse schema from #{resource}", caller
       end
     end
+
+    # Loads several resources in parallell
+    #
+    # @param [Enumerable] resources
+    # @param [Hash] options
+    # @return [Hash]
+    def parallell_load(resources, options = {})
+      return if resources.empty?
+      require 'threadify'
+      options[:strategy] = :each unless options.key?(:strategy)
+      options[:threads] = resources.length unless options.key?(:threads)
+      data = {}
+      resources.threadify(options) do |resource|
+        # Never load the same resource more than once
+        next if data.key?(resource)
+        if (content = safe_load(resource))
+          data[resource] = content
+        else
+          p "Failed to load #{resource}"
+        end
+      end
+      data
+    end
   end
 end

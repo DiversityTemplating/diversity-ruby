@@ -20,6 +20,7 @@ Gem::Specification.new do |s|
   s.add_dependency('moneta')
   s.add_dependency('mustache')
   s.add_dependency('open_uri_redirections')
+  s.add_dependency('threadify')
   s.add_dependency('uglifier')
   s.add_dependency('unirest')
 
